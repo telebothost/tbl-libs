@@ -19,39 +19,38 @@ function setProp(propName, value, userId = user.id, type = 'json') {
   return User.setProperty({ name: LIB_PREFIX + propName, value, user_id: userId, type });
 }
 
-function storeUserData(userId) {
-  const userKey = LIB_PREFIX + 'user_' + userId;
-  const userData = {
-    id: userId,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    username: user.username,
-    telegramid: user.telegramid,
-    chatId: user.chatid
-  };
-  Bot.setProperty(userKey, userData, 'json');
-  return userData;
-}
-
-function getUserData(userId) {
-  return Bot.getProperty(LIB_PREFIX + 'user_' + userId) || null;
-}
-
 function getRefList(userId = user.id) {
   const refList = getProp('refList', userId) || [];
-  return refList.map(id => getUserData(id)).filter(Boolean);
+  return refList.map(id => ({ id, ...getUserData(id) }));
 }
 
 function setRefList(userId, refList) {
   setProp('refList', refList.map(user => user.id), userId);
 }
 
+function getUserData(userId) {
+  const userData = Bot.getProperty(LIB_PREFIX + 'user_data_' + userId) || {};
+  if (!userData.id) userData.id = userId;
+  return userData;
+}
+
+function storeUserData(userData) {
+  const dataToStore = {
+    id: userData.id,
+    first_name: userData.first_name,
+    last_name: userData.last_name,
+    username: userData.username,
+    language: userData.language,
+    telegramid: userData.telegramid
+  };
+  Bot.setProperty(LIB_PREFIX + 'user_data_' + userData.id, dataToStore, 'json');
+}
+
 function getTopList() {
   const topList = Bot.getProperty(LIB_PREFIX + 'topList') || {};
-  return Object.entries(topList).map(([userId, count]) => {
-    const user = getUserData(userId);
-    return user ? {...user, refsCount: count} : null;
-  }).filter(Boolean).sort((a, b) => b.refsCount - a.refsCount);
+  return Object.entries(topList)
+    .map(([userId, count]) => ({ userId, count, ...getUserData(userId) }))
+    .sort((a, b) => b.count - a.count);
 }
 
 function updateTopList(userId, refsCount) {
@@ -65,7 +64,6 @@ function addReferral(userId) {
   if (!refList.includes(user.id)) {
     refList.push(user.id);
     setProp('refList', refList, userId);
-    storeUserData(user.id);
   }
 }
 
@@ -80,6 +78,7 @@ function updateRefCount(userId) {
 }
 
 function setReferral(userId) {
+  storeUserData(user);
   addReferral(userId);
   updateRefCount(userId);
   const refUser = getUserData(userId);
@@ -93,19 +92,15 @@ function isAlreadyAttracted() {
   return !!getProp('attracted_by_user') || !!getProp('old_user');
 }
 
-function getCurrentPrefix() {
-  return Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
-}
-
 function trackRef() {
-  const prefix = getCurrentPrefix();
+  const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
   if (!params.startsWith(prefix)) return;
   
-  const refId = params.substring(prefix.length);
+  const refId = parseInt(params.replace(prefix, ''));
   if (!refId) return;
   
-  if (parseInt(refId) === user.id) {
-    emitEvent('onTouchOwnLink');
+  if (refId === user.id) {
+    emitEvent('onTouchOwnLink', { user: getUserData(user.id) });
     return;
   }
   
@@ -116,35 +111,43 @@ function getAttractedBy() {
   return getProp('attracted_by_user');
 }
 
-function getRefLink(botName = bot.name, customPrefix) {
-  const prefix = customPrefix || getCurrentPrefix();
-  storeUserData(user.id);
-  return `https://t.me/${botName}?start=${prefix}${user.id}`;
-}
-
-function setRefLinkPrefix(prefix) {
+function getRefLink(botName = bot.name, prefix = 'user') {
   Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', prefix, 'string');
+  storeUserData(user);
+  return `https://t.me/${botName}?start=${prefix}${user.id}`;
 }
 
 function isDeepLink() {
   return message.startsWith('/start') && params;
 }
 
-function clearUserData(userId) {
-  const props = ['refList', 'refsCount', 'attracted_by_user', 'old_user'];
-  props.forEach(prop => User.deleteProperty({ name: LIB_PREFIX + prop, user_id: userId }));
-  Bot.deleteProperty(LIB_PREFIX + 'user_' + userId);
-}
-
 function track(_options = {}) {
   trackOptions = _options;
-  if (isAlreadyAttracted()) return emitEvent('onAlreadyAttracted');
+  storeUserData(user);
+  
+  if (isAlreadyAttracted()) {
+    emitEvent('onAlreadyAttracted', { user: getUserData(user.id) });
+    return;
+  }
+  
   if (isDeepLink()) trackRef();
   else setProp('old_user', true, user.id, 'boolean');
 }
 
-function resetTopList() {
-  Bot.setProperty(LIB_PREFIX + 'topList', {}, 'json');
+function resetUserData(userId = user.id) {
+  const props = ['refList', 'refsCount', 'attracted_by_user', 'old_user'];
+  props.forEach(prop => User.deleteProperty({ name: LIB_PREFIX + prop, user_id: userId }));
+  Bot.deleteProperty(LIB_PREFIX + 'user_data_' + userId);
+}
+
+function getLeaderboard(limit = 10) {
+  return getTopList().slice(0, limit);
+}
+
+function getMyRank() {
+  const topList = getTopList();
+  const userIndex = topList.findIndex(item => item.userId === user.id);
+  return userIndex === -1 ? null : userIndex + 1;
 }
 
 module.exports = {
@@ -153,9 +156,9 @@ module.exports = {
   getRefList: getRefList,
   getRefCount: getRefCount,
   getTopList: getTopList,
+  getLeaderboard: getLeaderboard,
+  getMyRank: getMyRank,
   getAttractedBy: getAttractedBy,
   getUserData: getUserData,
-  setPrefix: setRefLinkPrefix,
-  clearUserData: clearUserData,
-  resetTopList: resetTopList
+  resetUserData: resetUserData
 };
