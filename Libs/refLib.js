@@ -46,7 +46,7 @@ function addReferral(userId) {
       username: user.username,
       first_name: user.first_name,
       last_name: user.last_name,
-      chatId: user.chatid,
+     // chatId: user.chatid,
       date: new Date().toISOString()
     });
     setRefList(userId, refList);
