@@ -187,26 +187,11 @@ module.exports = {
     Array.from({ length: rows }, () => 
       Array.from({ length: cols }, () => generator(...args))),
 
-  randomWalk: (steps, stepSize = 1) => {
-    const walk = [0];
-    for (let i = 1; i < steps; i++) {
-      walk.push(walk[i-1] + (Math.random() < 0.5 ? -1 : 1) * stepSize);
-    }
-    return walk;
-  },
 
   randomToken: (length = 32) => 
     Array.from({ length }, () => 
       '0123456789abcdef'[Math.floor(Math.random() * 16)]).join(''),
 
-  randomPhone: (format = 'us') => {
-    const formats = {
-      us: () => `(${module.exports.randomInt(100, 999)}) ${module.exports.randomInt(100, 999)}-${module.exports.randomInt(1000, 9999)}`,
-      uk: () => `+44 ${module.exports.randomInt(1000, 9999)} ${module.exports.randomInt(100000, 999999)}`,
-      fr: () => `+33 ${module.exports.randomInt(1, 9)} ${Array(4).fill().map(() => module.exports.randomInt(0, 99).toString().padStart(2, '0')).join(' ')}`
-    };
-    return (formats[format] || formats.us)();
-  },
 
   randomEmail: (domains = ['gmail.com', 'yahoo.com', 'hotmail.com']) => 
     `${module.exports.randomString(module.exports.randomInt(5, 15))}@${module.exports.randomChoice(domains)}`,
