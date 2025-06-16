@@ -103,11 +103,11 @@ function track(_options = {}) {
   else setProp('old_user', true, user.id, 'boolean');
 }
 
-publish({
+module.exports = {
   getLink: getRefLink,
   track: track,
   getRefList: getRefList,
   getRefCount: getRefCount,
   getTopList: getTopList,
   getAttractedBy: getAttractedBy
-});
+};
