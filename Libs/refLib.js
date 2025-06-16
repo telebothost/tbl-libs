@@ -19,29 +19,53 @@ function setProp(propName, value, userId = user.id, type = 'json') {
   return User.setProperty({ name: LIB_PREFIX + propName, value, user_id: userId, type });
 }
 
+function storeUserData(userId) {
+  const userKey = LIB_PREFIX + 'user_' + userId;
+  const userData = {
+    id: userId,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    username: user.username,
+    telegramid: user.telegramid,
+    chatId: user.chatid
+  };
+  Bot.setProperty(userKey, userData, 'json');
+  return userData;
+}
+
+function getUserData(userId) {
+  return Bot.getProperty(LIB_PREFIX + 'user_' + userId) || null;
+}
+
 function getRefList(userId = user.id) {
-  return getProp('refList', userId) || [];
+  const refList = getProp('refList', userId) || [];
+  return refList.map(id => getUserData(id)).filter(Boolean);
 }
 
 function setRefList(userId, refList) {
-  setProp('refList', refList, userId);
+  setProp('refList', refList.map(user => user.id), userId);
 }
 
 function getTopList() {
-  return Bot.getProperty(LIB_PREFIX + 'topList') || {};
+  const topList = Bot.getProperty(LIB_PREFIX + 'topList') || {};
+  return Object.entries(topList).map(([userId, count]) => {
+    const user = getUserData(userId);
+    return user ? {...user, refsCount: count} : null;
+  }).filter(Boolean).sort((a, b) => b.refsCount - a.refsCount);
 }
 
 function updateTopList(userId, refsCount) {
-  const topList = getTopList();
+  const topList = Bot.getProperty(LIB_PREFIX + 'topList') || {};
   topList[userId] = refsCount;
   Bot.setProperty(LIB_PREFIX + 'topList', topList, 'json');
 }
 
 function addReferral(userId) {
-  const refList = getRefList(userId);
+  const refList = getProp('refList', userId) || [];
   if (!refList.includes(user.id)) {
     refList.push(user.id);
-    setRefList(userId, refList);
+    setProp('refList', refList, userId);
+    storeUserData(user.id);
   }
 }
 
@@ -58,8 +82,7 @@ function updateRefCount(userId) {
 function setReferral(userId) {
   addReferral(userId);
   updateRefCount(userId);
-  const refUserKey = LIB_PREFIX + 'user' + userId;
-  const refUser = Bot.getProperty(refUserKey);
+  const refUser = getUserData(userId);
   if (refUser) {
     setProp('attracted_by_user', refUser);
     emitEvent('onAttracted', refUser);
@@ -70,30 +93,47 @@ function isAlreadyAttracted() {
   return !!getProp('attracted_by_user') || !!getProp('old_user');
 }
 
+function getCurrentPrefix() {
+  return Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
+}
+
 function trackRef() {
-  const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
-  const [head, tail] = params.split(prefix);
-  if (head || !tail) return;
-  const refId = parseInt(tail);
-  if (refId === user.id) return emitEvent('onTouchOwnLink');
+  const prefix = getCurrentPrefix();
+  if (!params.startsWith(prefix)) return;
+  
+  const refId = params.substring(prefix.length);
+  if (!refId) return;
+  
+  if (parseInt(refId) === user.id) {
+    emitEvent('onTouchOwnLink');
+    return;
+  }
+  
   setReferral(refId);
 }
 
 function getAttractedBy() {
-  const refUser = getProp('attracted_by_user');
-  if (refUser) refUser.chatId = refUser.telegramid;
-  return refUser;
+  return getProp('attracted_by_user');
 }
 
-function getRefLink(botName = bot.name, prefix = 'user') {
-  Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', prefix, 'string');
-  const userKey = LIB_PREFIX + 'user' + user.id;
-  Bot.setProperty(userKey, user, 'json');
+function getRefLink(botName = bot.name, customPrefix) {
+  const prefix = customPrefix || getCurrentPrefix();
+  storeUserData(user.id);
   return `https://t.me/${botName}?start=${prefix}${user.id}`;
+}
+
+function setRefLinkPrefix(prefix) {
+  Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', prefix, 'string');
 }
 
 function isDeepLink() {
   return message.startsWith('/start') && params;
+}
+
+function clearUserData(userId) {
+  const props = ['refList', 'refsCount', 'attracted_by_user', 'old_user'];
+  props.forEach(prop => User.deleteProperty({ name: LIB_PREFIX + prop, user_id: userId }));
+  Bot.deleteProperty(LIB_PREFIX + 'user_' + userId);
 }
 
 function track(_options = {}) {
@@ -103,11 +143,19 @@ function track(_options = {}) {
   else setProp('old_user', true, user.id, 'boolean');
 }
 
+function resetTopList() {
+  Bot.setProperty(LIB_PREFIX + 'topList', {}, 'json');
+}
+
 module.exports = {
   getLink: getRefLink,
   track: track,
   getRefList: getRefList,
   getRefCount: getRefCount,
   getTopList: getTopList,
-  getAttractedBy: getAttractedBy
+  getAttractedBy: getAttractedBy,
+  getUserData: getUserData,
+  setPrefix: setRefLinkPrefix,
+  clearUserData: clearUserData,
+  resetTopList: resetTopList
 };
