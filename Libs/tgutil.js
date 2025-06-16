@@ -109,30 +109,5 @@ module.exports = {
       }
     });
     return result;
-  },
-
-  getMemberStatus: function(member) {
-    return member.status || (this.isBot(member) ? 'bot' : 'member');
-  },
-
-  formatMemberInfo: function(member, parseMode = 'markdown') {
-    const status = this.getMemberStatus(member);
-    const name = this.formatUser(member, { parseMode });
-    return parseMode === 'html'
-      ? `<b>${name}</b>\nStatus: ${status}`
-      : `*${name}*\nStatus: ${status}`;
-  },
-
-  formatDate: function(date, parseMode = 'markdown') {
-    const d = new Date(date);
-    const formatted = d.toLocaleString();
-    return parseMode === 'html' ? `<code>${formatted}</code>` : `\`${formatted}\``;
-  },
-
-  createInlineButton: function(text, data, type = 'callback_data', parseMode = 'markdown') {
-    const escapedText = this.escapeText(text, parseMode);
-    return parseMode === 'html'
-      ? `<button data-${type}="${data}">${escapedText}</button>`
-      : `{text: "${escapedText}", ${type}: "${data}"}`;
   }
 };
