@@ -55,7 +55,8 @@ Libs.refLib.track({
       );
     }
   }
-});```
+});
+```
 
 ### 2. Generating Referral Links
 ```javascript
