@@ -28,15 +28,6 @@ Libs.refLib.track({
       text: `🔥 ${user.first_name} just joined using your link!\n` +
             `You now have ${Libs.refLib.getRefCount(referrer.id)} referrals!`
     });
-    
-    // Add to referral list with metadata
-    const refData = {
-      id: user.id,
-      username: user.username,
-      date: new Date().toISOString(),
-      chatId: user.chatid
-    };
-    setProp('last_referral', refData, referrer.id);
   },
   
   onTouchOwnLink: () => {
