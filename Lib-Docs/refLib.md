@@ -16,6 +16,47 @@ Libs.refLib.track({
 });
 ```
 
+**Little bit advance**
+```js
+Libs.refLib.track({
+  onAttracted: (referrer) => {
+    // Notify both new user and referrer
+    Bot.sendMessage(`🎉 Welcome! You were referred by ${referrer.first_name}`);
+    
+    Api.sendMessage({
+      chat_id: referrer.id, // Send to referrer specifically
+      text: `🔥 ${user.first_name} just joined using your link!\n` +
+            `You now have ${Libs.refLib.getRefCount(referrer.id)} referrals!`
+    });
+    
+    // Add to referral list with metadata
+    const refData = {
+      id: user.id,
+      username: user.username,
+      date: new Date().toISOString(),
+      chatId: user.chatid
+    };
+    setProp('last_referral', refData, referrer.id);
+  },
+  
+  onTouchOwnLink: () => {
+    Api.sendMessage({
+      chat_id: user.id,
+      text: "🔄 That's your own link! Share it with friends instead!"
+    });
+  },
+  
+  onAlreadyAttracted: () => {
+    const referrer = Libs.refLib.getAttractedBy();
+    if (referrer) {
+      Bot.sendMessage(
+        `You were referred by ${referrer.first_name}\n` +
+        `Their total referrals: ${Libs.refLib.getRefCount(referrer.id)}`
+      );
+    }
+  }
+});```
+
 ### 2. Generating Referral Links
 ```javascript
 // Simple link
