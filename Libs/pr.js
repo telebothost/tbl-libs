@@ -1,7 +1,7 @@
 let text = "Hii";
 
-function hi() {
-  return Promise.all([
+async function hi() {
+  await Promise.all([
     Api.sendMessage({ text }),
     Api.sendMessage({ text })
   ]);
