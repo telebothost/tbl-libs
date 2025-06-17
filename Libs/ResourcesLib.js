@@ -1,174 +1,132 @@
-//Thanks to https://github.com/bots-business/store-libs/blob/master/ResourcesLib.js For making it open source 
+const libPrefix = 'ResourcesLib_';
 
-let libPrefix = 'ResourcesLib_';
-
-let growthResource = function(resource){
+const createGrowthResource = function(resource) {
   return {
     resource: resource,
 
-    /// auto growthing or decreasing
-    propName: function(){ return this.resource.propName() + '_growth'},
+    propName: function() { return this.resource.propName() + '_growth' },
 
-    info: function(){
+    info: function() {
       return Bot.getProperty(this.propName()) || {}
     },
 
-    title: function(){
-      if(!this.isEnabled){ return }
+    title: function() {
+      if(!this.isEnabled()) return;
 
       let growth = this.info();
-      let start_text = 'add ' + String(growth.increment);
-      let middle_text = ' once at ' + String(growth.interval) + ' secs';
+      let startText = 'add ' + String(growth.increment);
+      let middleText = ' once at ' + String(growth.interval) + ' secs';
 
-      if(growth.type=='simple'){
-        return  start_text + middle_text
-      }
-      if(growth.type=='percent'){
-        return  start_text + '%' + middle_text
-      }
-      if(growth.type=='compound_interest'){
-        return  start_text + '%' + middle_text + ' with reinvesting'
-      }
+      if(growth.type === 'simple') return startText + middleText;
+      if(growth.type === 'percent') return startText + '%' + middleText;
+      if(growth.type === 'compound_interest') return startText + '%' + middleText + ' with reinvesting';
     },
 
-    have: function(){ return this.info() },
+    have: function() { return this.info() },
 
-    isEnabled: function(){
+    isEnabled: function() {
       let growth = this.info();
-      if(growth){ return growth.enabled }
-      return false;
+      return growth ? growth.enabled : false;
     },
     
-    _toggle: function(status){
+    _toggle: function(status) {
       let growth = this.info();
-      if(!growth){ return }
-
+      if(!growth) return;
       growth.enabled = status;
       return Bot.setProperty(this.propName(), growth, 'json');
     },
 
-    stop: function(){
-      return this._toggle(false);
-    },
+    stop: function() { return this._toggle(false) },
 
-    progress: function(){
+    progress: function() {
       let growth = this.info();
-      if(!growth){ return }
-
-      let total_iterations = this.totalIterations(growth);
-      let fraction = total_iterations % 1;
-      return fraction*100;
+      if(!growth) return;
+      let totalIterations = this.totalIterations(growth);
+      let fraction = totalIterations % 1;
+      return fraction * 100;
     },
 
-    willCompletedAfter: function(){
-      return this.info().interval - this.progress()/100 * this.info().interval;
+    willCompleteAfter: function() {
+      return this.info().interval - this.progress() / 100 * this.info().interval;
     },
 
-    totalIterations: function(growth){
-      if(!growth){ growth = this.info() }
-
+    totalIterations: function(growth) {
+      if(!growth) growth = this.info();
       let now = (new Date().getTime());
-      let duration_in_seconds = ( now - growth.started_at ) / 1000;
-      return duration_in_seconds / growth.interval;
+      let durationInSeconds = (now - growth.started_at) / 1000;
+      return durationInSeconds / growth.interval;
     },
 
-    _calcMinMax(result, growth){
-      if((growth.min)&&(growth.min > result)){
-        return growth.min
-      }
-
-      if((growth.max)&&(growth.max < result)){
-        return growth.max
-      }
-
-      return result
+    _calcMinMax: function(result, growth) {
+      if(growth.min && growth.min > result) return growth.min;
+      if(growth.max && growth.max < result) return growth.max;
+      return result;
     },
 
-    _calcByTotalIterations(value, total_iterations, growth){
-      var result;
-      if(growth.type=='simple'){
-        result = value + total_iterations * growth.increment
+    _calcByTotalIterations: function(value, totalIterations, growth) {
+      let result;
+      if(growth.type === 'simple') result = value + totalIterations * growth.increment;
+      if(growth.type === 'percent') {
+        let percent = growth.increment / 100;
+        let allPercents = percent * growth.base_value * totalIterations;
+        result = value + allPercents;
       }
-      if(growth.type=='percent'){
-        let percent =  growth.increment / 100;
-        let all_percents =  percent * growth.base_value * total_iterations
-        result = value + all_percents;
-      }
-      if(growth.type=='compound_interest'){
+      if(growth.type === 'compound_interest') {
         let percent = (1 + growth.increment / 100);
-        result = value * Math.pow(percent, total_iterations)
+        result = value * Math.pow(percent, totalIterations);
       }
       return result;
     },
 
-    _getTotalIterationsWithLimit(growth){
-      let total_iterations = this.totalIterations(growth);
+    _getTotalIterationsWithLimit: function(growth) {
+      let totalIterations = this.totalIterations(growth);
+      if(!growth.max_iterations_count) return totalIterations;
 
-      if(!growth.max_iterations_count){ return total_iterations }
-
-      let total = total_iterations + growth.completed_iterations_count;
-      if(total < growth.max_iterations_count){
-        return total_iterations
-      }
-      
-      return growth.max_iterations_count - growth.completed_iterations_count;
+      let total = totalIterations + growth.completed_iterations_count;
+      return total < growth.max_iterations_count ? totalIterations : growth.max_iterations_count - growth.completed_iterations_count;
     },
 
-    _calcValue(value, growth){
-      let total_iterations = this._getTotalIterationsWithLimit(growth);
+    _calcValue: function(value, growth) {
+      let totalIterations = this._getTotalIterationsWithLimit(growth);
+      if(totalIterations < 1) return;
 
-      if(total_iterations<1){ return }
+      let fraction = totalIterations % 1;
+      totalIterations = totalIterations - fraction;
 
-      let fraction = total_iterations % 1;
-      total_iterations = total_iterations - fraction;
-
-      var result = this._calcByTotalIterations(value, total_iterations, growth)
-
-      growth.completed_iterations_count+= total_iterations;
-      
+      let result = this._calcByTotalIterations(value, totalIterations, growth);
+      growth.completed_iterations_count += totalIterations;
       result = this._calcMinMax(result, growth);
-      
       this._updateIteration(growth, fraction * 1000);
-
       return result;
     },
 
-    getValue: function(value){
+    getValue: function(value) {
       let growth = this.info();
-      if(!growth){ return value }
-      if(!growth.enabled){ return value }
-
-      let new_value = this._calcValue(value, growth);
-
-      if(!new_value){ return value }
-
-      this.resource._set(new_value);  /// update value
-
-      return new_value;
+      if(!growth || !growth.enabled) return value;
+      let newValue = this._calcValue(value, growth);
+      if(!newValue) return value;
+      this.resource._set(newValue);
+      return newValue;
     },
 
-    _updateIteration: function(growth, fraction){
-      if(!growth){ growth = this.info() }
-      if(!growth){ return }
+    _updateIteration: function(growth, fraction) {
+      if(!growth) growth = this.info();
+      if(!growth) return;
 
-      let started_at = (new Date().getTime());
-      /// started same early
-      if(fraction){ started_at = started_at - fraction }
-
-      growth.started_at = started_at;
-
+      let startedAt = (new Date().getTime());
+      if(fraction) startedAt = startedAt - fraction;
+      growth.started_at = startedAt;
       return Bot.setProperty(this.propName(), growth, 'json');
     },
 
-    _updateBaseValue: function(base_value){
-      var growth = this.info();
-      if(!growth){ return }
-
-      growth.base_value = base_value;
+    _updateBaseValue: function(baseValue) {
+      let growth = this.info();
+      if(!growth) return;
+      growth.base_value = baseValue;
       return Bot.setProperty(this.propName(), growth, 'json');
     },
 
-    _newGrowth: function(options){
+    _newGrowth: function(options) {
       return {
         base_value: this.resource.baseValue(),
         increment: options.increment,
@@ -182,220 +140,189 @@ let growthResource = function(resource){
       }
     },
 
-    _addAs: function(options){
+    _addAs: function(options) {
       let growth = this._newGrowth(options);
       return this._updateIteration(growth);
     },
 
-    add: function(options){
-      /// absolute growth value
+    add: function(options) {
       options.type = 'simple';
       options.increment = options.value;
       return this._addAs(options);
     },
 
-    addPercent: function(options){
-      /// percent
+    addPercent: function(options) {
       options.type = 'percent';
       options.increment = options.percent;
       return this._addAs(options);
     },
 
-    addCompoundInterest: function(options){
-      /// compound percent
+    addCompoundInterest: function(options) {
       options.type = 'compound_interest';
       options.increment = options.percent;
       return this._addAs(options);
     }
-
   }
-}
+};
 
-let commonResource = function(objName, objID, resName){
+const createResource = function(objName, objID, resName) {
   return {
     objName: objName,
     objID: objID,
     name: resName,
     growth: null,
 
-    _setGrowth: function(growth){
-      this.growth = growth;
-    },
+    _setGrowth: function(growth) { this.growth = growth },
 
-    propName: function(){
-      return libPrefix + this.objName + this.objID + '_' + this.name
-    },
+    propName: function() { return libPrefix + this.objName + this.objID + '_' + this.name },
 
-    isNumber: function(value){ return typeof(value)=='number' },
-
-    verifyNumber: function(value){ 
-      if(!this.isNumber(value)){
-        let evalue = '';
-        if(typeof(value)!='undefined'){ evalue = JSON.stringify(value) }
-        throw 'ResLib: value must be number only. It is not number: ' + typeof(value) + ' ' + evalue;
+    _convertToNumber: function(value) {
+      if (typeof value === 'string' && !isNaN(value)) {
+        return Number(value);
       }
+      return value;
     },
 
-    removeRes: function(res_amount){
-      this.set(this.value() - res_amount);
+    isNumber: function(value) {
+      value = this._convertToNumber(value);
+      return typeof value === 'number' && !isNaN(value);
+    },
+
+    verifyNumber: function(value) {
+      value = this._convertToNumber(value);
+      if(!this.isNumber(value)) {
+        let evalue = typeof value !== 'undefined' ? JSON.stringify(value) : '';
+        throw 'ResLib: value must be number only. It is not number: ' + typeof value + ' ' + evalue;
+      }
+      return value;
+    },
+
+    removeRes: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      this.set(this.value() - resAmount);
       return true;
     },
 
-    baseValue: function(){
-      let cur_value = Bot.getProperty(this.propName());
-      if(typeof(cur_value)=='undefined'){ return 0 }
-
-      return cur_value;
+    baseValue: function() {
+      let curValue = Bot.getProperty(this.propName());
+      return typeof curValue !== 'undefined' ? this.verifyNumber(curValue) : 0;
     },
 
-    value: function(){
-      let cur_value = this.baseValue();
-
-      if(this._withEnabledGrowth()){
-        return this.growth.getValue(cur_value);
-      }
-      return cur_value;
+    value: function() {
+      let curValue = this.baseValue();
+      return this._withEnabledGrowth() ? this.growth.getValue(curValue) : curValue;
     },
     
-    add: function(res_amount){
-      this.verifyNumber(res_amount);
-      this.set(this.value() + res_amount)
+    add: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      this.set(this.value() + resAmount);
       return true;
     },
 
-    have: function(res_amount){
-      this.verifyNumber(res_amount);
-      // can not have negative or null amount
-      if(res_amount < 0){ return false }
-      if(res_amount == 0){ return false }
-
-      return this.value() >= res_amount;
+    have: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      return resAmount > 0 && this.value() >= resAmount;
     },
     
-    remove: function(res_amount){
-      if(!this.have(res_amount)){
-        throw 'ResLib: not enough resources'
-      }
-      return this.removeRes(res_amount);
+    remove: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      if(!this.have(resAmount)) throw 'ResLib: not enough resources';
+      return this.removeRes(resAmount);
     },
     
-    removeAnyway: function(res_amount){
-      this.verifyNumber(res_amount);
-      return this.removeRes(res_amount)
+    removeAnyway: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      return this.removeRes(resAmount);
     },
 
-    _withEnabledGrowth: function(){
-      return (this.growth && this.growth.isEnabled())
+    _withEnabledGrowth: function() { return this.growth && this.growth.isEnabled() },
+
+    _set: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      Bot.setProperty(this.propName(), resAmount, 'number');
     },
 
-    _set: function(res_amount){
-      Bot.setProperty(this.propName(), res_amount, 'float');
+    set: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      if(this._withEnabledGrowth()) this.growth._updateBaseValue(resAmount);
+      return this._set(resAmount);
     },
 
-    set: function(res_amount){
-      this.verifyNumber(res_amount);
-
-      if( this._withEnabledGrowth() ){
-        this.growth._updateBaseValue(res_amount)
-      }
-      return this._set(res_amount);
+    anywayTakeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(fromResource.name !== toResource.name) throw 'ResLib: can not transfer different resources';
+      if(fromResource.removeAnyway(resAmount)) return toResource.add(resAmount);
+      return false;
     },
 
-    anywayTakeFromAndTransferTo: function(fromResource, toResource, res_amount){
-      if(fromResource.name!=toResource.name){
-        throw 'ResLib: can not transfer different resources'
-      }
-
-      if(fromResource.removeAnyway(res_amount)){
-        return toResource.add(res_amount)
-      }
-      return false
+    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(fromResource.removeAnyway(removeAmount)) return toResource.add(addAmount);
+      return false;
     },
 
-    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount){
-      if(fromResource.removeAnyway(remove_amount)){
-        return toResource.add(add_amount)
-      }
-      return false
+    takeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(!fromResource.have(resAmount)) throw 'ResLib: not enough resources for transfer';
+      return this.anywayTakeFromAndTransferTo(fromResource, toResource, resAmount);
     },
 
-    takeFromAndTransferTo: function(fromResource, toResource, res_amount){
-      if(!fromResource.have(res_amount)){
-        throw 'ResLib: not enough resources for transfer'
-      }
-
-      return this.anywayTakeFromAndTransferTo(fromResource, toResource, res_amount)
+    takeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(!fromResource.have(removeAmount)) throw 'ResLib: not enough resources for transfer';
+      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, removeAmount, addAmount);
     },
 
-    takeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount){
-      if(!fromResource.have(remove_amount)){
-        throw 'ResLib: not enough resources for transfer'
-      }
-
-      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, remove_amount, add_amount)
+    takeFromAnother: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    takeFromAnother: function(anotherResource, res_amount){
-      return this.takeFromAndTransferTo(anotherResource, this, res_amount);
+    transferTo: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(this, anotherResource, resAmount);
     },
 
-    transferTo: function(anotherResource, res_amount){
-      return this.takeFromAndTransferTo(this, anotherResource, res_amount);
+    exchangeTo: function(anotherResource, options) {
+      return this.takeFromAndTransferToDifferent(this, anotherResource, options.remove_amount, options.add_amount);
     },
 
-    exchangeTo: function(anotherResource, options){
-      return this.takeFromAndTransferToDifferent(this, 
-        anotherResource, options.remove_amount, options.add_amount );
+    takeFromAnotherAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    takeFromAnotherAnyway: function(anotherResource, res_amount){
-      return this.anywayTakeFromAndTransferTo(anotherResource, this, res_amount);
-    },
-
-    transferToAnyway: function(anotherResource, res_amount){
-      return this.anywayTakeFromAndTransferTo(this, anotherResource, res_amount);
+    transferToAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
-
   }
-}
+};
 
-let growthFor = function(resource){
-  let growth = growthResource(resource);
+const createGrowth = function(resource) {
+  let growth = createGrowthResource(resource);
   resource._setGrowth(growth);
   return growth;
-}
+};
 
-let getResourceFor = function(object, object_id, resName){
-  let res =  commonResource(object, object_id, resName);
-  growthFor(res);
-
+const getResource = function(object, objectID, resName) {
+  let res = createResource(object, objectID, resName);
+  createGrowth(res);
   return res;
-}
+};
 
-let userResource = function(resName){
-  return getResourceFor('user', user.telegramid, resName);
-}
+const getUserResource = function(resName) {
+  return getResource('user', user.telegramid, resName);
+};
 
-let chatResource = function(resName){
-  return getResourceFor('chat', chat.chatid, resName);
-}
+const getChatResource = function(resName) {
+  return getResource('chat', chat.chatid, resName);
+};
 
-let anotherUserResource = function(resName, telegramid){
-  return getResourceFor('user', telegramid, resName);
-}
+const getAnotherUserResource = function(resName, telegramid) {
+  return getResource('user', telegramid, resName);
+};
 
-let anotherChatResource = function(resName, chatid){
-  return getResourceFor('chat', chatid, resName);
-}
-
-
+const getAnotherChatResource = function(resName, chatid) {
+  return getResource('chat', chatid, resName);
+};
 
 module.exports = {
-  userRes: userResource,
-  chatRes: chatResource,
-
-  anotherUserRes: anotherUserResource,
-  anotherChatRes: anotherChatResource,
-
-  growthFor: growthFor
-}
+  userRes: getUserResource,
+  chatRes: getChatResource,
+  anotherUserRes: getAnotherUserResource,
+  anotherChatRes: getAnotherChatResource,
+  growthFor: createGrowth
+};
