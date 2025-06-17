@@ -80,10 +80,22 @@ function trackRef() {
   const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
   const validPrefixes = Array.isArray(prefix) ? prefix : [prefix];
   const matchedPrefix = validPrefixes.find(p => params.startsWith(p));
-  if (!matchedPrefix) return;
+  if (!matchedPrefix) {
+    setProp('old_user', true, user.id, 'boolean');
+    return;
+  }
+  
   const refId = parseInt(params.slice(matchedPrefix.length));
-  if (!refId || isNaN(refId)) return;
-  if (refId === user.id) return emitEvent('onTouchOwnLink', { user });
+  if (!refId || isNaN(refId)) {
+    setProp('old_user', true, user.id, 'boolean');
+    return;
+  }
+  
+  if (refId === user.id) {
+    emitEvent('onTouchOwnLink', { user });
+    return;
+  }
+  
   setReferral(refId);
 }
 
@@ -119,7 +131,6 @@ function track(options = {}) {
   trackOptions = options;
   if (isAlreadyAttracted()) return emitEvent('onAlreadyAttracted');
   if (isDeepLink()) return trackRef();
-  setProp('old_user', true, user.id, 'boolean');
 }
 
 module.exports = {
