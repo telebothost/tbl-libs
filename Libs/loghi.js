@@ -1,4 +1,4 @@
-function hi() {
+async function hi() {
   let userId = user.id;
 
   let result;
