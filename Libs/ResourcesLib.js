@@ -176,16 +176,31 @@ const createResource = function(objName, objID, resName) {
 
     propName: function() { return libPrefix + this.objName + this.objID + '_' + this.name },
 
-    isNumber: function(value) { return typeof value === 'number' },
+    isNumber: function(value) { 
+      if (typeof value === 'string' && !isNaN(value)) {
+        return true;
+      }
+      return typeof value === 'number';
+    },
+
+    _convertToNumber: function(value) {
+      if (typeof value === 'string' && !isNaN(value)) {
+        return parseFloat(value);
+      }
+      return value;
+    },
 
     verifyNumber: function(value) {
+      value = this._convertToNumber(value);
       if(!this.isNumber(value)) {
         let evalue = typeof value !== 'undefined' ? JSON.stringify(value) : '';
         throw 'ResLib: value must be number only. It is not number: ' + typeof value + ' ' + evalue;
       }
+      return value;
     },
 
     removeRes: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       this.set(this.value() - resAmount);
       return true;
     },
@@ -201,74 +216,90 @@ const createResource = function(objName, objID, resName) {
     },
     
     add: function(resAmount) {
-      this.verifyNumber(resAmount);
+      resAmount = this.verifyNumber(resAmount);
       this.set(this.value() + resAmount);
       return true;
     },
 
     have: function(resAmount) {
-      this.verifyNumber(resAmount);
+      resAmount = this.verifyNumber(resAmount);
       return resAmount > 0 && this.value() >= resAmount;
     },
     
     remove: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       if(!this.have(resAmount)) throw 'ResLib: not enough resources';
       return this.removeRes(resAmount);
     },
     
     removeAnyway: function(resAmount) {
-      this.verifyNumber(resAmount);
+      resAmount = this.verifyNumber(resAmount);
       return this.removeRes(resAmount);
     },
 
     _withEnabledGrowth: function() { return this.growth && this.growth.isEnabled() },
 
-    _set: function(resAmount) { Bot.setProperty(this.propName(), resAmount, 'float') },
+    _set: function(resAmount) { 
+      resAmount = this.verifyNumber(resAmount);
+      Bot.setProperty(this.propName(), resAmount, 'float') 
+    },
 
     set: function(resAmount) {
-      this.verifyNumber(resAmount);
+      resAmount = this.verifyNumber(resAmount);
       if(this._withEnabledGrowth()) this.growth._updateBaseValue(resAmount);
       return this._set(resAmount);
     },
 
     anywayTakeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       if(fromResource.name !== toResource.name) throw 'ResLib: can not transfer different resources';
       if(fromResource.removeAnyway(resAmount)) return toResource.add(resAmount);
       return false;
     },
 
     anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      removeAmount = this.verifyNumber(removeAmount);
+      addAmount = this.verifyNumber(addAmount);
       if(fromResource.removeAnyway(removeAmount)) return toResource.add(addAmount);
       return false;
     },
 
     takeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       if(!fromResource.have(resAmount)) throw 'ResLib: not enough resources for transfer';
       return this.anywayTakeFromAndTransferTo(fromResource, toResource, resAmount);
     },
 
     takeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      removeAmount = this.verifyNumber(removeAmount);
+      addAmount = this.verifyNumber(addAmount);
       if(!fromResource.have(removeAmount)) throw 'ResLib: not enough resources for transfer';
       return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, removeAmount, addAmount);
     },
 
     takeFromAnother: function(anotherResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       return this.takeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
     transferTo: function(anotherResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       return this.takeFromAndTransferTo(this, anotherResource, resAmount);
     },
 
     exchangeTo: function(anotherResource, options) {
+      options.remove_amount = this.verifyNumber(options.remove_amount);
+      options.add_amount = this.verifyNumber(options.add_amount);
       return this.takeFromAndTransferToDifferent(this, anotherResource, options.remove_amount, options.add_amount);
     },
 
     takeFromAnotherAnyway: function(anotherResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       return this.anywayTakeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
     transferToAnyway: function(anotherResource, resAmount) {
+      resAmount = this.verifyNumber(resAmount);
       return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
   }
