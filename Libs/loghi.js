@@ -8,7 +8,7 @@ function hi() {
       text: userId
     });
 
-    Bot.sendMessage("✅ Status: " + result.status);
+    Bot.inspect(result.status);
   } catch (err) {
     Bot.sendMessage("❌ Error: " + (err.message || "Unknown error"));
   }
