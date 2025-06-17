@@ -5,7 +5,7 @@ async function hi() {
       text: userId
     });
 
-    Bot.inspect(result.status);
+    Bot.inspect(result);
 }
 
 module.exports = { hi };
