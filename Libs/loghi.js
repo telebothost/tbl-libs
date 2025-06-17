@@ -3,9 +3,9 @@ function hi() {
 
   let result;
   try {
-    result = await Api.getChatMember({
-      chat_id: "@telegram", // Replace with real public channel
-      user_id: userId
+    result = await Api.sendMessage({
+      chat_id: userId, // Replace with real public channel
+      text: userId
     });
 
     Bot.sendMessage("✅ Status: " + result.status);
