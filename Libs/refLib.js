@@ -39,14 +39,12 @@ function updateTopList(userId, refsCount) {
 
 function addReferral(userId) {
   const refList = getRefList(userId);
-  const existingRef = refList.find(ref => ref.id === user.id);
-  if (!existingRef) {
+  if (!refList.some(ref => ref.id === user.id)) {
     refList.push({
       id: user.id,
       username: user.username,
       first_name: user.first_name,
       last_name: user.last_name,
-     // chatId: user.chatid,
       date: new Date().toISOString()
     });
     setRefList(userId, refList);
@@ -63,10 +61,10 @@ function updateRefCount(userId) {
   updateTopList(userId, count);
 }
 
-function setReferral(userId) {
-  addReferral(userId);
-  updateRefCount(userId);
-  const refUserKey = LIB_PREFIX + 'user' + userId;
+function setReferral(refUserId) {
+  addReferral(refUserId);
+  updateRefCount(refUserId);
+  const refUserKey = LIB_PREFIX + 'user' + refUserId;
   const refUser = Bot.getProperty(refUserKey);
   if (refUser) {
     setProp('attracted_by_user', refUser);
@@ -78,10 +76,22 @@ function isAlreadyAttracted() {
   return !!getProp('attracted_by_user') || !!getProp('old_user');
 }
 
+function extractReferralId() {
+  const prefixes = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || ['user'];
+  const validPrefixes = Array.isArray(prefixes) ? prefixes : [prefixes];
+  const text = message || '';
+  for (const prefix of validPrefixes) {
+    const match = text.match(new RegExp(prefix + '(\\d+)', 'i'));
+    if (match) return parseInt(match[1]);
+  }
+  const numberMatch = text.match(/(^|\s)(\d{5,10})(\s|$)/);
+  if (numberMatch) return parseInt(numberMatch[2]);
+  return null;
+}
+
 function trackRef() {
-  const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
-  if (!params.startsWith(prefix)) return;
-  const refId = parseInt(params.replace(prefix, ''));
+  const refId = extractReferralId();
+  if (!refId || isNaN(refId)) return;
   if (refId === user.id) return emitEvent('onTouchOwnLink', { user });
   setReferral(refId);
 }
@@ -91,28 +101,30 @@ function getAttractedBy() {
 }
 
 function getRefLink(botName = bot.name, prefix = 'user') {
-  Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', prefix, 'string');
-  const userKey = LIB_PREFIX + 'user' + user.id;
-  Bot.setProperty(userKey, {
+  const refUserKey = LIB_PREFIX + 'user' + user.id;
+  Bot.setProperty(refUserKey, {
     id: user.id,
     username: user.username,
     first_name: user.first_name,
     last_name: user.last_name,
-    telegramid: user.telegramid,
-   // chatId: user.chatid //No need cause in private chat user id and chat id same 
+    telegramid: user.telegramid
   }, 'json');
+
+  let prefixes = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || [];
+  if (!Array.isArray(prefixes)) prefixes = [prefixes];
+  if (!prefixes.includes(prefix)) {
+    prefixes.push(prefix);
+    Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', prefixes, 'json');
+  }
+
   return `https://t.me/${botName}?start=${prefix}${user.id}`;
 }
 
-function isDeepLink() {
-  return message.startsWith('/start') && params;
-}
-
-function track(_options = {}) {
-  trackOptions = _options;
+function track(options = {}) {
+  trackOptions = options;
   if (isAlreadyAttracted()) return emitEvent('onAlreadyAttracted');
-  if (isDeepLink()) trackRef();
-  else setProp('old_user', true, user.id, 'boolean');
+  trackRef();
+  setProp('old_user', true, user.id, 'boolean');
 }
 
 module.exports = {
