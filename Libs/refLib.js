@@ -1,53 +1,53 @@
-let LIB_PREFIX = 'REFLIB_';
-let trackOptions = {};
+const _LIB_PREFIX = 'REFLIB_';
+let _refTrackOptions = {};
 
-function emitEvent(eventName, prms = {}) {
-  const evenFun = trackOptions[eventName];
-  if (evenFun) {
-    evenFun(prms);
+function _refEmitEvent(eventName, prms = {}) {
+  const handler = _refTrackOptions[eventName];
+  if (handler) {
+    handler(prms);
     return true;
   }
 }
 
-function getProp(propName, userId = user.id) {
-  return User.getProperty({ name: LIB_PREFIX + propName, user_id: userId });
+function _refGetProp(name, userId = user.id) {
+  return User.getProperty({ name: _LIB_PREFIX + name, user_id: userId });
 }
 
-function setProp(propName, value, type = 'json', userId = user.id) {
-  return User.setProperty({ name: LIB_PREFIX + propName, value, type, user_id: userId });
+function _refSetProp(name, value, type = 'json', userId = user.id) {
+  return User.setProperty({ name: _LIB_PREFIX + name, value, type, user_id: userId });
 }
 
-function getRefList(userId = user.id) {
-  return getProp('refList', userId) || [];
+function _refGetRefList(userId = user.id) {
+  return _refGetProp('refList', userId) || [];
 }
 
-function setRefList(refList, userId) {
-  setProp('refList', refList, 'json', userId);
+function _refSetRefList(refList, userId) {
+  _refSetProp('refList', refList, 'json', userId);
 }
 
-function getTopList() {
-  return Bot.getProperty(LIB_PREFIX + 'TopList') || {};
+function _refGetTopList() {
+  return Bot.getProperty(_LIB_PREFIX + 'TopList') || {};
 }
 
-function setTopList(topList) {
-  Bot.setProperty(LIB_PREFIX + 'TopList', topList, 'json');
+function _refSetTopList(topList) {
+  Bot.setProperty(_LIB_PREFIX + 'TopList', topList, 'json');
 }
 
-function getRefCount(userId = user.id) {
-  return getProp('refsCount', userId) || 0;
+function _refGetRefCount(userId = user.id) {
+  return _refGetProp('refsCount', userId) || 0;
 }
 
-function updateRefCount(userId) {
-  const count = getRefCount(userId) + 1;
-  setProp('refsCount', count, 'integer', userId);
+function _refUpdateRefCount(userId) {
+  const count = _refGetRefCount(userId) + 1;
+  _refSetProp('refsCount', count, 'integer', userId);
 
-  const topList = getTopList();
+  const topList = _refGetTopList();
   topList[userId] = count;
-  setTopList(topList);
+  _refSetTopList(topList);
 }
 
-function addReferralUser(userId) {
-  const refList = getRefList(userId);
+function _refAddReferralUser(userId) {
+  const refList = _refGetRefList(userId);
   if (!refList.some(r => r.id === user.id)) {
     refList.push({
       id: user.id,
@@ -57,12 +57,12 @@ function addReferralUser(userId) {
       telegramid: user.telegramid,
       date: new Date().toISOString()
     });
-    setRefList(refList, userId);
+    _refSetRefList(refList, userId);
   }
 }
 
-function saveUserRecord(userId = user.id) {
-  const key = LIB_PREFIX + 'user' + userId;
+function _refSaveUser(userId = user.id) {
+  const key = _LIB_PREFIX + 'user' + userId;
   Bot.setProperty(key, {
     id: user.id,
     username: user.username,
@@ -72,84 +72,105 @@ function saveUserRecord(userId = user.id) {
   }, 'json');
 }
 
-function setReferral(refUserId) {
-  addReferralUser(refUserId);
-  updateRefCount(refUserId);
-  const refUser = Bot.getProperty(LIB_PREFIX + 'user' + refUserId);
+function _refSetReferral(refUserId) {
+  _refAddReferralUser(refUserId);
+  _refUpdateRefCount(refUserId);
+
+  const refUser = Bot.getProperty(_LIB_PREFIX + 'user' + refUserId);
   if (refUser) {
-    setProp('attracted_by_user', refUser, 'json');
-    emitEvent('onAttracted', refUser);
+    _refSetProp('attracted_by_user', refUser, 'json');
+    _refEmitEvent('onAttracted', refUser);
   }
 }
 
-function getAttractedBy() {
-  const ref = getProp('attracted_by_user');
+function _refGetAttractedBy() {
+  const ref = _refGetProp('attracted_by_user');
   if (ref) ref.chatId = ref.telegramid;
   return ref;
 }
 
-function isAlreadyAttracted() {
-  return !!getProp('attracted_by_user') || !!getProp('old_user');
+function _refIsAlreadyAttracted() {
+  return !!_refGetProp('attracted_by_user') || !!_refGetProp('old_user');
 }
 
-function extractReferralId(msg) {
-  let prefixes = Bot.getProperty(LIB_PREFIX + 'refLinkPrefixes') || ['user'];
+function _refExtractRefId(msg = message) {
+  let prefixes = Bot.getProperty(_LIB_PREFIX + 'refLinkPrefixes') || ['user'];
   if (!Array.isArray(prefixes)) prefixes = [prefixes];
-  msg = msg || message;
+
   for (const prefix of prefixes) {
     const match = msg.match(new RegExp(prefix + '(\\d+)', 'i'));
     if (match) return parseInt(match[1]);
   }
+
   const fallback = msg.match(/(^|\s)(\d{5,12})(\s|$)/);
   if (fallback) return parseInt(fallback[2]);
+
   return null;
 }
 
-function trackRef() {
-  const refId = extractReferralId();
-  if (!refId || refId === user.id) return emitEvent('onTouchOwnLink');
-  setReferral(refId);
+function _refTrackRef() {
+  const refId = _refExtractRefId();
+  if (!refId) return false;
+  if (refId === user.id) return _refEmitEvent('onTouchOwnLink');
+  _refSetReferral(refId);
+  return true;
 }
 
-function getRefLink(botName = bot.name, prefix = 'user') {
-  saveUserRecord(user.id);
+function getLink(botName = bot.name, prefix = 'user') {
+  _refSaveUser(user.id);
 
-  let prefixes = Bot.getProperty(LIB_PREFIX + 'refLinkPrefixes') || [];
+  let prefixes = Bot.getProperty(_LIB_PREFIX + 'refLinkPrefixes') || [];
   if (!Array.isArray(prefixes)) prefixes = [prefixes];
   if (!prefixes.includes(prefix)) {
     prefixes.push(prefix);
-    Bot.setProperty(LIB_PREFIX + 'refLinkPrefixes', prefixes, 'json');
+    Bot.setProperty(_LIB_PREFIX + 'refLinkPrefixes', prefixes, 'json');
   }
 
   return `https://t.me/${botName}?start=${prefix}${user.id}`;
 }
 
-function isDeepLink() {
-  return typeof params !== 'undefined' && params !== null;
+function track(options = {}) {
+  _refTrackOptions = options;
+
+  if (_refIsAlreadyAttracted()) return _refEmitEvent('onAlreadyAttracted');
+
+  const tracked = _refTrackRef();
+  if (!tracked && message.toLowerCase().startsWith('/start')) {
+    _refSetProp('old_user', true, 'boolean');
+  }
 }
 
-function track(_trackOptions = {}) {
-  trackOptions = _trackOptions;
-  if (isAlreadyAttracted()) return emitEvent('onAlreadyAttracted');
-  if (isDeepLink()) return trackRef();
-  return setProp('old_user', true, 'boolean');
+function getRefList(userId) {
+  return _refGetRefList(userId);
+}
+
+function getRefCount(userId) {
+  return _refGetRefCount(userId);
+}
+
+function getTopList() {
+  return _refGetTopList();
+}
+
+function getAttractedBy() {
+  return _refGetAttractedBy();
 }
 
 function clearRefList(userId = user.id) {
-  setProp('refList', [], 'json', userId);
+  _refSetRefList([], userId);
 }
 
 module.exports = {
-  getLink: getRefLink,
-  track: track,
-  getRefList: getRefList,
-  getRefCount: getRefCount,
-  getTopList: getTopList,
-  getAttractedBy: getAttractedBy,
+  getLink,
+  track,
+  getRefList,
+  getRefCount,
+  getTopList,
+  getAttractedBy,
 
   currentUser: {
-    getRefLink: getRefLink,
-    track: track,
+    getRefLink: getLink,
+    track,
     refList: {
       get: getRefList,
       clear: clearRefList
@@ -160,4 +181,4 @@ module.exports = {
   topList: {
     get: getTopList
   }
-}
+};
