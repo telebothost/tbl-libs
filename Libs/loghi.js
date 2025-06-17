@@ -1,14 +1,17 @@
 function hi() {
-  const userId = user.id;
+  let userId = user.id;
 
-  return Api.getChatMember({
-    chat_id: "@channel1", // Replace with real one
-    user_id: userId
-  }).then(res => {
-    Bot.sendMessage("✅ Status: " + res.status);
-  }).catch(e => {
-    Bot.sendMessage("❌ Error: " + (e.message || "Unknown error"));
-  });
+  let result;
+  try {
+    result = await Api.getChatMember({
+      chat_id: "@telegram", // Replace with real public channel
+      user_id: userId
+    });
+
+    Bot.sendMessage("✅ Status: " + result.status);
+  } catch (err) {
+    Bot.sendMessage("❌ Error: " + (err.message || "Unknown error"));
+  }
 }
 
 module.exports = { hi };
