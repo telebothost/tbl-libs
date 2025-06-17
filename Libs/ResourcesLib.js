@@ -398,5 +398,4 @@ module.exports = {
   anotherChatRes: anotherChatResource,
 
   growthFor: growthFor
-
 }
