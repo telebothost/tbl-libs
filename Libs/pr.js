@@ -1,6 +1,7 @@
 let text = "Hii"
-let hi = () => await Promise.all([
+const hi = () => await Promise.all([
     
     Api.sendMessage({text}),
     Api.sendMessage({text})
 ])
+module.exports = {hi}
