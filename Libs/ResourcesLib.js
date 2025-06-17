@@ -1,6 +1,6 @@
 const libPrefix = 'ResourcesLib_';
 
-const growthResource = function(resource) {
+const createGrowthResource = function(resource) {
   return {
     resource: resource,
 
@@ -14,12 +14,12 @@ const growthResource = function(resource) {
       if(!this.isEnabled()) return;
 
       let growth = this.info();
-      let start_text = 'add ' + String(growth.increment);
-      let middle_text = ' once at ' + String(growth.interval) + ' secs';
+      let startText = 'add ' + String(growth.increment);
+      let middleText = ' once at ' + String(growth.interval) + ' secs';
 
-      if(growth.type == 'simple') return start_text + middle_text;
-      if(growth.type == 'percent') return start_text + '%' + middle_text;
-      if(growth.type == 'compound_interest') return start_text + '%' + middle_text + ' with reinvesting';
+      if(growth.type === 'simple') return startText + middleText;
+      if(growth.type === 'percent') return startText + '%' + middleText;
+      if(growth.type === 'compound_interest') return startText + '%' + middleText + ' with reinvesting';
     },
 
     have: function() { return this.info() },
@@ -41,61 +41,60 @@ const growthResource = function(resource) {
     progress: function() {
       let growth = this.info();
       if(!growth) return;
-      let total_iterations = this.totalIterations(growth);
-      let fraction = total_iterations % 1;
+      let totalIterations = this.totalIterations(growth);
+      let fraction = totalIterations % 1;
       return fraction * 100;
     },
 
-    willCompletedAfter: function() {
+    willCompleteAfter: function() {
       return this.info().interval - this.progress() / 100 * this.info().interval;
     },
 
     totalIterations: function(growth) {
       if(!growth) growth = this.info();
       let now = (new Date().getTime());
-      let duration_in_seconds = (now - growth.started_at) / 1000;
-      return duration_in_seconds / growth.interval;
+      let durationInSeconds = (now - growth.started_at) / 1000;
+      return durationInSeconds / growth.interval;
     },
 
     _calcMinMax: function(result, growth) {
-      if((growth.min) && (growth.min > result)) return growth.min;
-      if((growth.max) && (growth.max < result)) return growth.max;
+      if(growth.min && growth.min > result) return growth.min;
+      if(growth.max && growth.max < result) return growth.max;
       return result;
     },
 
-    _calcByTotalIterations: function(value, total_iterations, growth) {
-      var result;
-      if(growth.type == 'simple') result = value + total_iterations * growth.increment;
-      if(growth.type == 'percent') {
+    _calcByTotalIterations: function(value, totalIterations, growth) {
+      let result;
+      if(growth.type === 'simple') result = value + totalIterations * growth.increment;
+      if(growth.type === 'percent') {
         let percent = growth.increment / 100;
-        let all_percents = percent * growth.base_value * total_iterations;
-        result = value + all_percents;
+        let allPercents = percent * growth.base_value * totalIterations;
+        result = value + allPercents;
       }
-      if(growth.type == 'compound_interest') {
+      if(growth.type === 'compound_interest') {
         let percent = (1 + growth.increment / 100);
-        result = value * Math.pow(percent, total_iterations);
+        result = value * Math.pow(percent, totalIterations);
       }
       return result;
     },
 
     _getTotalIterationsWithLimit: function(growth) {
-      let total_iterations = this.totalIterations(growth);
-      if(!growth.max_iterations_count) return total_iterations;
+      let totalIterations = this.totalIterations(growth);
+      if(!growth.max_iterations_count) return totalIterations;
 
-      let total = total_iterations + growth.completed_iterations_count;
-      if(total < growth.max_iterations_count) return total_iterations;
-      return growth.max_iterations_count - growth.completed_iterations_count;
+      let total = totalIterations + growth.completed_iterations_count;
+      return total < growth.max_iterations_count ? totalIterations : growth.max_iterations_count - growth.completed_iterations_count;
     },
 
     _calcValue: function(value, growth) {
-      let total_iterations = this._getTotalIterationsWithLimit(growth);
-      if(total_iterations < 1) return;
+      let totalIterations = this._getTotalIterationsWithLimit(growth);
+      if(totalIterations < 1) return;
 
-      let fraction = total_iterations % 1;
-      total_iterations = total_iterations - fraction;
+      let fraction = totalIterations % 1;
+      totalIterations = totalIterations - fraction;
 
-      var result = this._calcByTotalIterations(value, total_iterations, growth);
-      growth.completed_iterations_count += total_iterations;
+      let result = this._calcByTotalIterations(value, totalIterations, growth);
+      growth.completed_iterations_count += totalIterations;
       result = this._calcMinMax(result, growth);
       this._updateIteration(growth, fraction * 1000);
       return result;
@@ -103,30 +102,27 @@ const growthResource = function(resource) {
 
     getValue: function(value) {
       let growth = this.info();
-      if(!growth) return value;
-      if(!growth.enabled) return value;
-
-      let new_value = this._calcValue(value, growth);
-      if(!new_value) return value;
-
-      this.resource._set(new_value);
-      return new_value;
+      if(!growth || !growth.enabled) return value;
+      let newValue = this._calcValue(value, growth);
+      if(!newValue) return value;
+      this.resource._set(newValue);
+      return newValue;
     },
 
     _updateIteration: function(growth, fraction) {
       if(!growth) growth = this.info();
       if(!growth) return;
 
-      let started_at = (new Date().getTime());
-      if(fraction) started_at = started_at - fraction;
-      growth.started_at = started_at;
+      let startedAt = (new Date().getTime());
+      if(fraction) startedAt = startedAt - fraction;
+      growth.started_at = startedAt;
       return Bot.setProperty(this.propName(), growth, 'json');
     },
 
-    _updateBaseValue: function(base_value) {
-      var growth = this.info();
+    _updateBaseValue: function(baseValue) {
+      let growth = this.info();
       if(!growth) return;
-      growth.base_value = base_value;
+      growth.base_value = baseValue;
       return Bot.setProperty(this.propName(), growth, 'json');
     },
 
@@ -141,7 +137,7 @@ const growthResource = function(resource) {
         max_iterations_count: options.max_iterations_count,
         enabled: true,
         completed_iterations_count: 0
-      };
+      }
     },
 
     _addAs: function(options) {
@@ -166,10 +162,10 @@ const growthResource = function(resource) {
       options.increment = options.percent;
       return this._addAs(options);
     }
-  };
+  }
 };
 
-const commonResource = function(objName, objID, resName) {
+const createResource = function(objName, objID, resName) {
   return {
     objName: objName,
     objID: objID,
@@ -180,117 +176,113 @@ const commonResource = function(objName, objID, resName) {
 
     propName: function() { return libPrefix + this.objName + this.objID + '_' + this.name },
 
-    isNumber: function(value) { return typeof(value) == 'number' },
+    isNumber: function(value) { return typeof value === 'number' },
 
     verifyNumber: function(value) {
       if(!this.isNumber(value)) {
-        let evalue = '';
-        if(typeof(value) != 'undefined') evalue = JSON.stringify(value);
-        throw 'ResLib: value must be number only. It is not number: ' + typeof(value) + ' ' + evalue;
+        let evalue = typeof value !== 'undefined' ? JSON.stringify(value) : '';
+        throw 'ResLib: value must be number only. It is not number: ' + typeof value + ' ' + evalue;
       }
     },
 
-    removeRes: function(res_amount) {
-      this.set(this.value() - res_amount);
+    removeRes: function(resAmount) {
+      this.set(this.value() - resAmount);
       return true;
     },
 
     baseValue: function() {
-      let cur_value = Bot.getProperty(this.propName());
-      return typeof(cur_value) == 'undefined' ? 0 : cur_value;
+      let curValue = Bot.getProperty(this.propName());
+      return typeof curValue !== 'undefined' ? curValue : 0;
     },
 
     value: function() {
-      let cur_value = this.baseValue();
-      if(this._withEnabledGrowth()) return this.growth.getValue(cur_value);
-      return cur_value;
+      let curValue = this.baseValue();
+      return this._withEnabledGrowth() ? this.growth.getValue(curValue) : curValue;
     },
     
-    add: function(res_amount) {
-      this.verifyNumber(res_amount);
-      this.set(this.value() + res_amount);
+    add: function(resAmount) {
+      this.verifyNumber(resAmount);
+      this.set(this.value() + resAmount);
       return true;
     },
 
-    have: function(res_amount) {
-      this.verifyNumber(res_amount);
-      if(res_amount < 0) return false;
-      if(res_amount == 0) return false;
-      return this.value() >= res_amount;
+    have: function(resAmount) {
+      this.verifyNumber(resAmount);
+      return resAmount > 0 && this.value() >= resAmount;
     },
     
-    remove: function(res_amount) {
-      if(!this.have(res_amount)) throw 'ResLib: not enough resources';
-      return this.removeRes(res_amount);
+    remove: function(resAmount) {
+      if(!this.have(resAmount)) throw 'ResLib: not enough resources';
+      return this.removeRes(resAmount);
     },
     
-    removeAnyway: function(res_amount) {
-      this.verifyNumber(res_amount);
-      return this.removeRes(res_amount);
+    removeAnyway: function(resAmount) {
+      this.verifyNumber(resAmount);
+      return this.removeRes(resAmount);
     },
 
-    _withEnabledGrowth: function() { return (this.growth && this.growth.isEnabled()) },
+    _withEnabledGrowth: function() { return this.growth && this.growth.isEnabled() },
 
-    _set: function(res_amount) { Bot.setProperty(this.propName(), res_amount, 'float') },
+    _set: function(resAmount) { Bot.setProperty(this.propName(), resAmount, 'float') },
 
-    set: function(res_amount) {
-      this.verifyNumber(res_amount);
-      if(this._withEnabledGrowth()) this.growth._updateBaseValue(res_amount);
-      return this._set(res_amount);
+    set: function(resAmount) {
+      this.verifyNumber(resAmount);
+      if(this._withEnabledGrowth()) this.growth._updateBaseValue(resAmount);
+      return this._set(resAmount);
     },
 
-    anywayTakeFromAndTransferTo: function(fromResource, toResource, res_amount) {
-      if(fromResource.name != toResource.name) throw 'ResLib: can not transfer different resources';
-      if(fromResource.removeAnyway(res_amount)) return toResource.add(res_amount);
+    anywayTakeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(fromResource.name !== toResource.name) throw 'ResLib: can not transfer different resources';
+      if(fromResource.removeAnyway(resAmount)) return toResource.add(resAmount);
       return false;
     },
 
-    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount) {
-      if(fromResource.removeAnyway(remove_amount)) return toResource.add(add_amount);
+    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(fromResource.removeAnyway(removeAmount)) return toResource.add(addAmount);
       return false;
     },
 
-    takeFromAndTransferTo: function(fromResource, toResource, res_amount) {
-      if(!fromResource.have(res_amount)) throw 'ResLib: not enough resources for transfer';
-      return this.anywayTakeFromAndTransferTo(fromResource, toResource, res_amount);
+    takeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(!fromResource.have(resAmount)) throw 'ResLib: not enough resources for transfer';
+      return this.anywayTakeFromAndTransferTo(fromResource, toResource, resAmount);
     },
 
-    takeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount) {
-      if(!fromResource.have(remove_amount)) throw 'ResLib: not enough resources for transfer';
-      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, remove_amount, add_amount);
+    takeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(!fromResource.have(removeAmount)) throw 'ResLib: not enough resources for transfer';
+      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, removeAmount, addAmount);
     },
 
-    takeFromAnother: function(anotherResource, res_amount) {
-      return this.takeFromAndTransferTo(anotherResource, this, res_amount);
+    takeFromAnother: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    transferTo: function(anotherResource, res_amount) {
-      return this.takeFromAndTransferTo(this, anotherResource, res_amount);
+    transferTo: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(this, anotherResource, resAmount);
     },
 
     exchangeTo: function(anotherResource, options) {
       return this.takeFromAndTransferToDifferent(this, anotherResource, options.remove_amount, options.add_amount);
     },
 
-    takeFromAnotherAnyway: function(anotherResource, res_amount) {
-      return this.anywayTakeFromAndTransferTo(anotherResource, this, res_amount);
+    takeFromAnotherAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    transferToAnyway: function(anotherResource, res_amount) {
-      return this.anywayTakeFromAndTransferTo(this, anotherResource, res_amount);
+    transferToAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
-  };
+  }
 };
 
-const createGrowthFor = function(resource) {
-  let growth = growthResource(resource);
+const createGrowth = function(resource) {
+  let growth = createGrowthResource(resource);
   resource._setGrowth(growth);
   return growth;
 };
 
-const getResource = function(object, object_id, resName) {
-  let res = commonResource(object, object_id, resName);
-  createGrowthFor(res);
+const getResource = function(object, objectID, resName) {
+  let res = createResource(object, objectID, resName);
+  createGrowth(res);
   return res;
 };
 
@@ -311,10 +303,9 @@ const getAnotherChatResource = function(resName, chatid) {
 };
 
 module.exports = {
-  getUserResource,
-  getChatResource,
-  getAnotherUserResource,
-  getAnotherChatResource,
-  createGrowthFor,
-  getResource
+  userRes: getUserResource,
+  chatRes: getChatResource,
+  anotherUserRes: getAnotherUserResource,
+  anotherChatRes: getAnotherChatResource,
+  growthFor: createGrowth
 };
