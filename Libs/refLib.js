@@ -135,7 +135,11 @@ function track(options = {}) {
   if (_refIsAlreadyAttracted()) return _refEmitEvent('onAlreadyAttracted');
 
   const tracked = _refTrackRef();
-  if (!tracked && message.toLowerCase().startsWith('/start')) {
+  if (
+    message.toLowerCase().startsWith('/start') &&
+    !params &&
+    !_refExtractRefId()
+  ) {
     _refSetProp('old_user', true, 'boolean');
   }
 }
