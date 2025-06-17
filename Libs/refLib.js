@@ -76,23 +76,37 @@ function isAlreadyAttracted() {
   return !!getProp('attracted_by_user') || !!getProp('old_user');
 }
 
-function trackRef() {
+function isValidRefLink() {
+  if (!isDeepLink()) return false;
+  
   const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
   const validPrefixes = Array.isArray(prefix) ? prefix : [prefix];
   const matchedPrefix = validPrefixes.find(p => params.startsWith(p));
-  if (!matchedPrefix) {
-    setProp('old_user', true, user.id, 'boolean');
-    return;
-  }
+  
+  if (!matchedPrefix) return false;
   
   const refId = parseInt(params.slice(matchedPrefix.length));
-  if (!refId || isNaN(refId)) {
+  return !isNaN(refId) && refId > 0;
+}
+
+function trackRef() {
+  if (!isValidRefLink()) {
     setProp('old_user', true, user.id, 'boolean');
     return;
   }
-  
+
+  const prefix = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || 'user';
+  const validPrefixes = Array.isArray(prefix) ? prefix : [prefix];
+  const matchedPrefix = validPrefixes.find(p => params.startsWith(p));
+  const refId = parseInt(params.slice(matchedPrefix.length));
+
   if (refId === user.id) {
     emitEvent('onTouchOwnLink', { user });
+    return;
+  }
+  
+  if (isAlreadyAttracted()) {
+    emitEvent('onAlreadyAttracted', { referringUser: refId });
     return;
   }
   
@@ -124,13 +138,13 @@ function getRefLink(botName = bot.name, prefix = 'user') {
 }
 
 function isDeepLink() {
-  return message.startsWith('/start') && params && typeof params === 'string';
+  return message && message.startsWith('/start') && params && typeof params === 'string';
 }
 
 function track(options = {}) {
   trackOptions = options;
-  if (isAlreadyAttracted()) return emitEvent('onAlreadyAttracted');
   if (isDeepLink()) return trackRef();
+  setProp('old_user', true, user.id, 'boolean');
 }
 
 module.exports = {
