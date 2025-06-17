@@ -99,7 +99,7 @@ function getRefLink(botName = bot.name, prefix = 'user') {
     first_name: user.first_name,
     last_name: user.last_name,
     telegramid: user.telegramid,
-    chatId: user.chatid
+   // chatId: user.chatid //No need cause in private chat user id and chat id same 
   }, 'json');
   return `https://t.me/${botName}?start=${prefix}${user.id}`;
 }
