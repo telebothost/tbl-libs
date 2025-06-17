@@ -390,7 +390,7 @@ let anotherChatResource = function(resName, chatid){
 
 
 
-publish({
+module.exports = {
   userRes: userResource,
   chatRes: chatResource,
 
@@ -399,4 +399,4 @@ publish({
 
   growthFor: growthFor
 
-})
+}
