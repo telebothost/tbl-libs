@@ -213,4 +213,4 @@ function takeDamage(amount) {
 - Supports both user and chat resources
 - Transfer operations validate resource types match
 
-This documentation provides a comprehensive reference for the ResourcesLib functionality while maintaining the original library's behavior and adding clear examples and syntax highlighting.
+
