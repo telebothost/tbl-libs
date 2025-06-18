@@ -5,7 +5,7 @@
       text: userId
     });
 
-   await Bot.sendMessage(result);
+   await Bot.inspect(result);
 }
 
 module.exports = { hi };
