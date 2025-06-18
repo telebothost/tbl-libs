@@ -54,11 +54,11 @@ TBL supports its own runtime language and built-in globals:
 
 | Keyword      | Meaning                                 |
 |--------------|------------------------------------------|
-| `User`       | Current user object                      |
-| `Chat`       | Current chat object                      |
+| `user`       | Current user object                      |
+| `chat`       | Current chat object                      |
 | `Bot`        | Bot methods like `Bot.sendMessage(...)`  |
 | `Api`        | Raw Telegram Bot API methods             |
-| `user`, `chat`, `bot` | Shortcuts to runtime contexts |
+| `User`, `Global`, `bot` | Shortcuts to runtime contexts |
 > And more supported!
 > You can use TBL variables, methods, and native functions within your libs.
 
