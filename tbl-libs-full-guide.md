@@ -14,7 +14,6 @@ A comprehensive guide to building, using, and debugging custom JavaScript librar
 
 - ✅ **Supports both sync & async libraries**
 - ✅ Full access to Telegram Bot API via `Api`
-- ✅ Lightweight `vm` sandbox for safe script execution
 - ✅ Errors and timeouts handled safely
 - ✅ Up to 10-second execution timeout for safety
 - ✅ Built-in support for TBL Language: `User`, `Bot`, `Chat`, etc.
@@ -60,8 +59,8 @@ TBL supports its own runtime language and built-in globals:
 | `Bot`        | Bot methods like `Bot.sendMessage(...)`  |
 | `Api`        | Raw Telegram Bot API methods             |
 | `user`, `chat`, `bot` | Shortcuts to runtime contexts |
-
-> You can use TBL variables, methods, control flow like `if`, `for`, and native functions within your libs.
+> And more supported!
+> You can use TBL variables, methods, and native functions within your libs.
 
 ---
 
@@ -232,7 +231,7 @@ await Libs.greet.welcome(user.id);
 | Async libs  | ✅         | Use `await Libs.name.method()` |
 | Sync libs   | ✅         | Direct call: `Libs.name.fn()`  |
 | Return Data | ✅         | Always return from async       |
-| Promise     | ❌         | Use `await` only               |
+| Promise     | ✅        | only on `async` function           |
 | `then`/`catch` | ❌     | Not supported in TBL           |
 
 ---
