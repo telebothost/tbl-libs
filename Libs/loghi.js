@@ -1,11 +1,11 @@
- function hi() {
+ async function hi() {
   let userId = user.id;
     let result =  Api.sendMessage({
       chat_id: userId, // Replace with real public channel
       text: userId
     });
 
-    Bot.sendMessage(result);
+   await Bot.sendMessage(result);
 }
 
 module.exports = { hi };
