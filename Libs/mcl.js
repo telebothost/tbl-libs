@@ -78,11 +78,36 @@ async function summaryText(userId, channels) {
   }
   return msg;
 }
+function getBtn(channels) {
+  if (!Array.isArray(channels)) {
+    throw new Error("[LibsError] InputError: Channels must be an array");
+  }
 
+  const seen = new Set();
+  const buttons = [];
+
+  for (let channel of channels) {
+    if (typeof channel !== 'string') continue;
+
+    if (channel.startsWith("@")) {
+      const username = channel.replace(/^@+/, ""); // remove @ if duplicated
+      if (seen.has(username)) continue;
+      seen.add(username);
+
+      buttons.push([{
+        text: `📢 Join @${username}`,
+        url: `https://t.me/${username}`
+      }]);
+    }
+  }
+
+  return buttons;
+}
 module.exports = {
   check,
   quick,
   getLeftChannels,
   getInvalidChannels,
-  summaryText
+  summaryText,
+  getBtn
 };
