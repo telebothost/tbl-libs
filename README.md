@@ -273,3 +273,38 @@ If you hit errors:
 Happy bot building! 🤖
 
 ---
+
+### 🤝 Contribute to TBL Libs
+
+We welcome contributions to the **TBL Libs** collection!
+
+If you’ve built a useful utility or helper library for Telegram bot development using TBL (Telegram Bot Language), you can share it with the community.
+
+#### 📌 How to Contribute
+
+1. **Create Your Library**
+   - Write your lib in a new `.js` file under `/Libs/`
+   - Export your functions properly via `module.exports = { ... }`
+
+2. **Follow the Rules**
+   - One file per library
+   - No external dependencies—use only TBL APIs and JavaScript
+   - Name the file and methods clearly
+   - Add brief inline comments if needed
+
+3. **Test Before Push**
+   - Ensure your lib loads and works using `Libs.myLib.method()`
+   - Async methods must be used with `await`
+
+4. **Submit a Pull Request**
+   - Fork the repository
+   - Add your `.js` file under `/Libs`
+   - Submit a **Pull Request** with:
+     - A clear description
+     - Library purpose
+     - Optional usage notes
+
+---
+
+✨ Let’s grow the TBL ecosystem together!  
+Submit your PRs and help other developers build faster.
