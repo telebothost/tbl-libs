@@ -22,18 +22,27 @@ async function check(userId, channels) {
         user_id: userId
       });
 
-      results.details.push({ channel, member });
+      const isErrorLike = member?.message || member?.ok === false;
 
-      if (["left", "kicked"].includes(member.status)) {
+      if (isErrorLike) {
+        results.invalid.push(channel);
+        return;
+      }
+
+      const status = member?.result?.status;
+
+      if (["left", "kicked"].includes(status)) {
         results.left.push(channel);
         results.valid.push(channel);
+        results.details.push({ channel, member });
         results.all_joined = false;
       } else {
         results.valid.push(channel);
+        results.details.push({ channel, member });
       }
-    } catch (err) {
+
+    } catch (_) {
       results.invalid.push(channel);
-      results.details.push({ channel, error: err.message });
       results.all_joined = false;
     }
   }));
@@ -60,20 +69,20 @@ async function summaryText(userId, channels) {
   const result = await check(userId, channels);
   if (result.all_joined) return "✅ You have joined all required channels.";
 
-  let msg = "🚫 You're missing some channel(s):\n";
+  let msg = "🚫 Please join the required channels:";
   if (result.left.length > 0) {
-    msg += `\n📤 Left:\n${result.left.map(c => "• " + c).join("\n")}`;
+    msg += `\n\n📤 Left:\n${result.left.map(c => "• " + c).join("\n")}`;
   }
   if (result.invalid.length > 0) {
-    msg += `\n\n❌ Invalid:\n${result.invalid.map(c => "• " + c).join("\n")}`;
+    msg += `\n\n❌ Invalid/Inaccessible:\n${result.invalid.map(c => "• " + c).join("\n")}`;
   }
   return msg;
 }
 
 module.exports = {
-  check,             // detailed full result
-  quick,             // true/false only
-  getLeftChannels,   // list of channels the user left
-  getInvalidChannels,// list of invalid/inaccessible channels
-  summaryText        // returns a friendly formatted message
+  check,
+  quick,
+  getLeftChannels,
+  getInvalidChannels,
+  summaryText
 };
