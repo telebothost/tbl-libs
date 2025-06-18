@@ -16,7 +16,7 @@ A comprehensive guide to building, using, and debugging custom JavaScript librar
 - ✅ Full access to Telegram Bot API via `Api`
 - ✅ Errors and timeouts handled safely
 - ✅ Up to 10-second execution timeout for safety
-- ✅ Built-in support for TBL Language: `User`, `Bot`, `Chat`, etc.
+- ✅ Built-in support for TBL Language: `User`, `Bot`, `chat`, etc.
 
 ---
 
