@@ -1,7 +1,6 @@
-//dateTimeFormat Lib
+// dateTimeFormat Lib
 
-
-module.exports = {
+const dateTimeFormat = {
   format: function(date, mask, utc, locale = 'en') {
     const dateFormat = function() {
       const token = /d{1,4}|m{1,4}|s{1,2}|M{1,2}|m{1,4}|H{1,2}|yyyy{1,4}|y{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,
@@ -105,7 +104,7 @@ module.exports = {
   },
 
   getCurrentDate: function(mask = "default", utc = false, locale = 'en') {
-    return this.format(new Date(), mask, utc, locale);
+    return dateTimeFormat.format(new Date(), mask, utc, locale);
   },
 
   addDays: function(date, days) {
@@ -169,3 +168,5 @@ module.exports = {
     return new Date(timestamp * 1000);
   }
 };
+
+module.exports = dateTimeFormat;
