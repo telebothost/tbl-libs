@@ -4,7 +4,7 @@ async function hi() {
   const userId = user.id;
 
   // Replace these with your actual channel usernames or IDs
-  const channels = ["@DemoChannel1", "@DemoChanne"];
+  const channels = ["@DemoChannel1", "@DemoChannel2"];
 
   const checks = await Promise.all(channels.map(async (channel) => {
     try {
