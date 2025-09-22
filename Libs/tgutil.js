@@ -1,3 +1,4 @@
+//tgutils lib
 module.exports = {
   getNameFor(member, options = {}) {
     const { preferFullName = false } = options;
