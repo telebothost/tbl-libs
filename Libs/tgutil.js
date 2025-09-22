@@ -63,7 +63,7 @@ module.exports = {
 
   escapeText: function(text, parseMode = 'markdown') {
     return parseMode === 'html'
-      ? text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
+      ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       : text.replace(/([_*[\]()~`>#+-=|{}.!])/g, '\\$1');
   },
 
@@ -76,7 +76,8 @@ module.exports = {
 
   getUserMention: function(member, options = {}) {
     const { parseMode = 'markdown', showId = false } = options;
-    return this.formatUser(member, { link: true, parseMode, showId });
+    // Use module.exports to ensure we call the right function
+    return module.exports.formatUser(member, { link: true, parseMode, showId });
   },
 
   parseEntities: function(text, entities, parseMode = 'markdown') {
