@@ -1,7 +1,5 @@
-//tgutil Lib
-
 module.exports = {
-  getNameFor: function(member, options = {}) {
+  getNameFor(member, options = {}) {
     const { preferFullName = false } = options;
     let haveAnyNames = member.username || member.first_name || member.last_name;
     if (!haveAnyNames) return "";
@@ -11,8 +9,8 @@ module.exports = {
       : member.first_name || member.last_name;
   },
 
-  getLinkFor: function(member, parseMode = 'markdown') {
-    let name = this.getNameFor(member);
+  getLinkFor(member, parseMode = 'markdown') {
+    let name = module.exports.getNameFor(member);
     const id = member.telegramid || member.id;
     if (!name) name = id || "Unknown User";
     return parseMode === 'html'
@@ -20,14 +18,16 @@ module.exports = {
       : `[${name}](tg://user?id=${id})`;
   },
 
-  getFullName: function(member) {
+  getFullName(member) {
     let nameParts = [];
     if (member.first_name) nameParts.push(member.first_name);
     if (member.last_name) nameParts.push(member.last_name);
-    return nameParts.length ? nameParts.join(" ") : this.getNameFor(member);
+    return nameParts.length
+      ? nameParts.join(" ")
+      : module.exports.getNameFor(member);
   },
 
-  formatUser: function(member, options = {}) {
+  formatUser(member, options = {}) {
     const {
       showId = false,
       useFullName = false,
@@ -36,7 +36,10 @@ module.exports = {
       fallbackText = 'Unknown User'
     } = options;
 
-    const name = useFullName ? this.getFullName(member) : this.getNameFor(member);
+    const name = useFullName
+      ? module.exports.getFullName(member)
+      : module.exports.getNameFor(member);
+
     const id = member.telegramid || member.id;
     const displayName = name || (showId && id ? id : fallbackText);
 
@@ -47,11 +50,11 @@ module.exports = {
     return showId && name && id ? `${linkText} (${id})` : linkText;
   },
 
-  isBot: function(member) {
+  isBot(member) {
     return !!(member.is_bot || member.username?.toLowerCase().endsWith('bot'));
   },
 
-  getChatLink: function(chat, parseMode = 'markdown') {
+  getChatLink(chat, parseMode = 'markdown') {
     const link = chat.username 
       ? `https://t.me/${chat.username}`
       : chat.invite_link || `https://t.me/c/${String(chat.id).replace('-100', '')}`;
@@ -61,33 +64,34 @@ module.exports = {
       : `[${title}](${link})`;
   },
 
-  escapeText: function(text, parseMode = 'markdown') {
+  escapeText(text, parseMode = 'markdown') {
     return parseMode === 'html'
-      ? text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      ? text.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
       : text.replace(/([_*[\]()~`>#+-=|{}.!])/g, '\\$1');
   },
 
-  formatMessageLink: function(chatId, messageId, parseMode = 'markdown') {
+  formatMessageLink(chatId, messageId, parseMode = 'markdown') {
     const link = `https://t.me/c/${String(chatId).replace('-100', '')}/${messageId}`;
     return parseMode === 'html'
       ? `<a href="${link}">Message</a>`
       : `[Message](${link})`;
   },
-//fixed
-  getUserMention: function(member, options = {}) {
+
+  getUserMention(member, options = {}) {
     const { parseMode = 'markdown', showId = false } = options;
-    // Use module.exports to ensure we call the right function
     return module.exports.formatUser(member, { link: true, parseMode, showId });
   },
 
-  parseEntities: function(text, entities, parseMode = 'markdown') {
-    if (!entities || !entities.length) return this.escapeText(text, parseMode);
+  parseEntities(text, entities, parseMode = 'markdown') {
+    if (!entities || !entities.length) return module.exports.escapeText(text, parseMode);
     
     let result = text;
     entities.sort((a, b) => b.offset - a.offset).forEach(entity => {
       const { offset, length, type } = entity;
       const snippet = result.substr(offset, length);
-      const escapedSnippet = this.escapeText(snippet, parseMode);
+      const escapedSnippet = module.exports.escapeText(snippet, parseMode);
       
       if (parseMode === 'html') {
         switch (type) {
