@@ -73,7 +73,7 @@ module.exports = {
       ? `<a href="${link}">Message</a>`
       : `[Message](${link})`;
   },
-
+//fixed
   getUserMention: function(member, options = {}) {
     const { parseMode = 'markdown', showId = false } = options;
     // Use module.exports to ensure we call the right function
