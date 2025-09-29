@@ -12,11 +12,11 @@ function emitEvent(eventName, params = {}) {
 }
 
 function getProp(propName, userId = user.id) {
-  return User.get({ name: LIB_PREFIX + propName, user_id: userId });
+  return User.getProperty({ name: LIB_PREFIX + propName, user_id: userId });
 }
 
 function setProp(propName, value, userId = user.id, type = 'json') {
-  return User.set({ name: LIB_PREFIX + propName, value, user_id: userId, type });
+  return User.setProperty({ name: LIB_PREFIX + propName, value, user_id: userId, type });
 }
 
 function getRefList(userId = user.id) {
