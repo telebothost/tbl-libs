@@ -33,7 +33,7 @@ const createGrowthResource = function(resource) {
       let growth = this.info();
       if(!growth) return;
       growth.enabled = status;
-      return Bot.setProperty(this.propName(), growth, 'json');
+      return Bot.setProperty(this.propName(), growth);
     },
 
     stop: function() { return this._toggle(false) },
@@ -116,14 +116,14 @@ const createGrowthResource = function(resource) {
       let startedAt = (new Date().getTime());
       if(fraction) startedAt = startedAt - fraction;
       growth.started_at = startedAt;
-      return Bot.setProperty(this.propName(), growth, 'json');
+      return Bot.setProperty(this.propName(), growth);
     },
 
     _updateBaseValue: function(baseValue) {
       let growth = this.info();
       if(!growth) return;
       growth.base_value = baseValue;
-      return Bot.setProperty(this.propName(), growth, 'json');
+      return Bot.setProperty(this.propName(), growth);
     },
 
     _newGrowth: function(options) {
@@ -142,7 +142,8 @@ const createGrowthResource = function(resource) {
 
     _addAs: function(options) {
       let growth = this._newGrowth(options);
-      return this._updateIteration(growth);
+      growth.started_at = new Date().getTime();
+      return Bot.setProperty(this.propName(), growth);
     },
 
     add: function(options) {
@@ -239,7 +240,7 @@ const createResource = function(objName, objID, resName) {
 
     _set: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      Bot.setProperty(this.propName(), resAmount, 'number');
+      Bot.setProperty(this.propName(), resAmount);
     },
 
     set: function(resAmount) {
