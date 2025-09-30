@@ -15,8 +15,8 @@ function getProp(propName, userId = user.id) {
   return User.getProperty({ name: LIB_PREFIX + propName, user_id: userId });
 }
 
-function setProp(propName, value, userId = user.id, type = 'json') {
-  return User.setProperty({ name: LIB_PREFIX + propName, value, user_id: userId, type });
+function setProp(propName, value, userId = user.id) {
+  return User.setProperty({ name: LIB_PREFIX + propName, value, user_id: userId });
 }
 
 function getRefList(userId = user.id) {
@@ -34,7 +34,7 @@ function getTopList() {
 function updateTopList(userId, refsCount) {
   const topList = getTopList();
   topList[userId] = refsCount;
-  Bot.setProperty(LIB_PREFIX + 'topList', topList, 'json');
+  Bot.setProperty(LIB_PREFIX + 'topList', topList);
 }
 
 function addReferral(userId) {
@@ -52,12 +52,13 @@ function addReferral(userId) {
 }
 
 function getRefCount(userId = user.id) {
-  return getProp('refsCount', userId) || 0;
+  const count = getProp('refsCount', userId);
+  return count !== null && count !== undefined ? Number(count) : 0;
 }
 
 function updateRefCount(userId) {
   const count = getRefCount(userId) + 1;
-  setProp('refsCount', count, userId, 'integer');
+  setProp('refsCount', count, userId);
   updateTopList(userId, count);
 }
 
@@ -91,7 +92,7 @@ function isValidRefLink() {
 
 function trackRef() {
   if (!isValidRefLink()) {
-    setProp('old_user', true, user.id, 'boolean');
+    setProp('old_user', true, user.id);
     return;
   }
 
@@ -125,13 +126,13 @@ function getRefLink(botName = bot.name, prefix = 'user') {
     first_name: user.first_name,
     last_name: user.last_name,
     telegramid: user.telegramid
-  }, 'json');
+  });
 
   let currentPrefixes = Bot.getProperty(LIB_PREFIX + 'refLinkPrefix') || [];
   if (!Array.isArray(currentPrefixes)) currentPrefixes = [currentPrefixes];
   if (!currentPrefixes.includes(prefix)) {
     currentPrefixes.push(prefix);
-    Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', currentPrefixes, 'json');
+    Bot.setProperty(LIB_PREFIX + 'refLinkPrefix', currentPrefixes);
   }
 
   return `https://t.me/${botName}?start=${prefix}${user.id}`;
@@ -144,7 +145,7 @@ function isDeepLink() {
 function track(options = {}) {
   trackOptions = options;
   if (isDeepLink()) return trackRef();
-  setProp('old_user', true, user.id, 'boolean');
+  setProp('old_user', true, user.id);
 }
 
 module.exports = {
