@@ -118,14 +118,14 @@ Bot.sendMessage(inviteText);
 
 ### 3. Formatting Received Messages
 ```javascript
-Bot.onMessage((msg) => {
+
   const formatted = Libs.tgutil.parseEntities(
     msg.text, 
     msg.entities, 
     'markdown'
   );
   Bot.sendMessage(`Formatted: ${formatted}`);
-});
+
 ```
 
 ### 4. User Information Display
@@ -143,14 +143,13 @@ Bot.sendMessage(userInfo);
 ### 5. Message Link Creation
 ```javascript
 // Reply with link to original message
-Bot.onReply((msg, reply) => {
   const link = Libs.tgutil.formatMessageLink(
     msg.chat.id,
     msg.message_id,
     'html'
   );
   Bot.sendMessage(`Replying to ${link}`, { parse_mode: 'HTML' });
-});
+
 ```
 
 This library provides essential utilities for working with Telegram's API, making user mentions, chat links, and message formatting much easier to handle.
