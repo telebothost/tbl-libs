@@ -143,7 +143,7 @@ const createGrowthResource = function(resource) {
       if(!growth || !growth.enabled) return value;
       let newValue = this._calcValue(value, growth);
       if(typeof newValue !== 'number' || isNaN(newValue)) return value;
-      this.resource._set(newValue);
+      // FIXED: Remove the recursive _set call that was causing the loop
       return newValue;
     },
 
@@ -229,7 +229,7 @@ const createResource = function(objName, objID, resName) {
   objID = objID || '0';
   resName = resName || 'resource';
   
-  return {
+  let resource = {
     objName: objName,
     objID: objID,
     name: resName,
@@ -270,7 +270,7 @@ const createResource = function(objName, objID, resName) {
 
     removeRes: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
+      let currentValue = this.baseValue();
       this._set(currentValue - resAmount);
       return true;
     },
@@ -288,7 +288,15 @@ const createResource = function(objName, objID, resName) {
       try {
         let curValue = this.baseValue();
         if (this._withEnabledGrowth() && this.growth) {
-          return this.growth.getValue(curValue);
+          let grownValue = this.growth.getValue(curValue);
+          // FIXED: Only update storage if growth actually changed the value
+          if (grownValue !== curValue) {
+            this._set(grownValue);
+            if (this.growth && this.growth._updateBaseValue) {
+              this.growth._updateBaseValue(grownValue);
+            }
+          }
+          return grownValue;
         }
         return curValue;
       } catch (e) {
@@ -298,8 +306,14 @@ const createResource = function(objName, objID, resName) {
     
     add: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
-      this._set(currentValue + resAmount); // FIXED: Use _set instead of set()
+      let currentValue = this.baseValue();
+      let newValue = currentValue + resAmount;
+      this._set(newValue);
+      
+      // Update growth base value if growth is enabled
+      if (this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
+        this.growth._updateBaseValue(newValue);
+      }
       return true;
     },
 
@@ -388,6 +402,8 @@ const createResource = function(objName, objID, resName) {
       return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
   };
+
+  return resource;
 };
 
 const createGrowth = function(resource) {
@@ -454,6 +470,6 @@ module.exports = {
   chatRes: getChatResource,
   anotherUserRes: getAnotherUserResource,
   anotherChatRes: getAnotherChatResource,
-  globalRes: getGlobalResource, // New global resource function
+  globalRes: getGlobalResource,
   growthFor: createGrowth
 };
