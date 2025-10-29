@@ -143,7 +143,7 @@ const createGrowthResource = function(resource) {
       if(!growth || !growth.enabled) return value;
       let newValue = this._calcValue(value, growth);
       if(typeof newValue !== 'number' || isNaN(newValue)) return value;
-      // FIXED: Remove the recursive _set call that was causing the loop
+      // FIXED: Remove the problematic _set call
       return newValue;
     },
 
@@ -229,7 +229,7 @@ const createResource = function(objName, objID, resName) {
   objID = objID || '0';
   resName = resName || 'resource';
   
-  let resource = {
+  return {
     objName: objName,
     objID: objID,
     name: resName,
@@ -270,7 +270,7 @@ const createResource = function(objName, objID, resName) {
 
     removeRes: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue();
+      let currentValue = this.baseValue(); // FIXED: Use baseValue
       this._set(currentValue - resAmount);
       return true;
     },
@@ -289,7 +289,7 @@ const createResource = function(objName, objID, resName) {
         let curValue = this.baseValue();
         if (this._withEnabledGrowth() && this.growth) {
           let grownValue = this.growth.getValue(curValue);
-          // FIXED: Only update storage if growth actually changed the value
+          // Only update if growth actually changed the value
           if (grownValue !== curValue) {
             this._set(grownValue);
             if (this.growth && this.growth._updateBaseValue) {
@@ -306,11 +306,11 @@ const createResource = function(objName, objID, resName) {
     
     add: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue();
+      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
       let newValue = currentValue + resAmount;
-      this._set(newValue);
+      this._set(newValue); // FIXED: Use _set instead of set()
       
-      // Update growth base value if growth is enabled
+      // Update growth base value
       if (this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
         this.growth._updateBaseValue(newValue);
       }
@@ -402,8 +402,6 @@ const createResource = function(objName, objID, resName) {
       return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
   };
-
-  return resource;
 };
 
 const createGrowth = function(resource) {
@@ -422,7 +420,6 @@ const getResource = function(object, objectID, resName) {
     createGrowth(res);
     return res;
   } catch (e) {
-    // demo response so your code wouldn\'t crash anymore 
     return {
       value: function() { return 0; },
       add: function() { return false; },
