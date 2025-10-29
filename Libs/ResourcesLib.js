@@ -270,8 +270,8 @@ const createResource = function(objName, objID, resName) {
 
     removeRes: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.value();
-      this.set(currentValue - resAmount);
+      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
+      this._set(currentValue - resAmount);
       return true;
     },
 
@@ -298,8 +298,8 @@ const createResource = function(objName, objID, resName) {
     
     add: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.value();
-      this.set(currentValue + resAmount);
+      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
+      this._set(currentValue + resAmount); // FIXED: Use _set instead of set()
       return true;
     },
 
