@@ -406,7 +406,7 @@ const getResource = function(object, objectID, resName) {
     createGrowth(res);
     return res;
   } catch (e) {
-    // demo response so your code wouldn't crash anymore 
+    // demo response so your code wouldn\'t crash anymore 
     return {
       value: function() { return 0; },
       add: function() { return false; },
@@ -416,6 +416,11 @@ const getResource = function(object, objectID, resName) {
       baseValue: function() { return 0; }
     };
   }
+};
+
+// Global resource - accessible by all users
+const getGlobalResource = function(resName) {
+  return getResource('global', 'shared', resName);
 };
 
 const getUserResource = function(resName) {
@@ -449,7 +454,6 @@ module.exports = {
   chatRes: getChatResource,
   anotherUserRes: getAnotherUserResource,
   anotherChatRes: getAnotherChatResource,
+  globalRes: getGlobalResource, // New global resource function
   growthFor: createGrowth
 };
-
-//Fixed null type Error 
