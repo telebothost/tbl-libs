@@ -5,172 +5,177 @@ const createGrowthResource = function(resource) {
     resource: resource,
 
     propName: function() { 
-      return this.resource.propName() + '_growth';
+      return (this.resource.propName() || '') + '_growth' 
     },
 
     info: function() {
-      return Bot.getProperty(this.propName()) || {};
+      try {
+        return Bot.getProperty(this.propName()) || {};
+      } catch (e) {
+        return {};
+      }
     },
 
     title: function() {
       if(!this.isEnabled()) return '';
 
       let growth = this.info();
-      let start_text = 'add ' + String(growth.increment);
-      let middle_text = ' once at ' + String(growth.interval) + ' secs';
+      let increment = growth.increment || 0;
+      let interval = growth.interval || 0;
+      let startText = 'add ' + String(increment);
+      let middleText = ' once at ' + String(interval) + ' secs';
 
-      if(growth.type == 'simple') {
-        return start_text + middle_text;
-      }
-      if(growth.type == 'percent') {
-        return start_text + '%' + middle_text;
-      }
-      if(growth.type == 'compound_interest') {
-        return start_text + '%' + middle_text + ' with reinvesting';
-      }
+      if(growth.type === 'simple') return startText + middleText;
+      if(growth.type === 'percent') return startText + '%' + middleText;
+      if(growth.type === 'compound_interest') return startText + '%' + middleText + ' with reinvesting';
       
       return '';
     },
 
     have: function() { 
-      return Object.keys(this.info()).length > 0;
+      let info = this.info();
+      return info && Object.keys(info).length > 0;
     },
 
     isEnabled: function() {
       let growth = this.info();
-      return growth ? growth.enabled : false;
+      return growth ? (growth.enabled === true) : false;
     },
     
     _toggle: function(status) {
       let growth = this.info();
-      if(!growth) return false;
-
+      if(!growth || Object.keys(growth).length === 0) return false;
       growth.enabled = status;
-      return Bot.setProperty(this.propName(), growth, 'json');
+      try {
+        Bot.setProperty(this.propName(), growth, 'json');
+        return true;
+      } catch (e) {
+        return false;
+      }
     },
 
-    stop: function() {
-      return this._toggle(false);
+    stop: function() { 
+      return this._toggle(false); 
     },
 
     progress: function() {
       let growth = this.info();
-      if(!growth) return 0;
-
-      let total_iterations = this.totalIterations(growth);
-      let fraction = total_iterations % 1;
+      if(!growth || Object.keys(growth).length === 0) return 0;
+      let totalIterations = this.totalIterations(growth);
+      let fraction = totalIterations % 1;
       return fraction * 100;
     },
 
     willCompleteAfter: function() {
       let growth = this.info();
-      if(!growth) return 0;
-      return growth.interval - this.progress() / 100 * growth.interval;
+      if(!growth || Object.keys(growth).length === 0) return 0;
+      let interval = growth.interval || 0;
+      return interval - this.progress() / 100 * interval;
     },
 
     totalIterations: function(growth) {
       if(!growth) growth = this.info();
       if(!growth || !growth.started_at) return 0;
-
+      
       let now = (new Date().getTime());
-      let duration_in_seconds = (now - growth.started_at) / 1000;
-      return duration_in_seconds / growth.interval;
+      let startedAt = growth.started_at || now;
+      let interval = growth.interval || 1;
+      let durationInSeconds = (now - startedAt) / 1000;
+      return durationInSeconds / interval;
     },
 
     _calcMinMax: function(result, growth) {
-      if(growth.min && growth.min > result) {
-        return growth.min;
-      }
-      if(growth.max && growth.max < result) {
-        return growth.max;
-      }
+      if(!growth) return result;
+      if(typeof growth.min === 'number' && growth.min > result) return growth.min;
+      if(typeof growth.max === 'number' && growth.max < result) return growth.max;
       return result;
     },
 
-    _calcByTotalIterations: function(value, total_iterations, growth) {
-      let result;
-      if(growth.type == 'simple') {
-        result = value + total_iterations * growth.increment;
-      }
-      if(growth.type == 'percent') {
-        let percent = growth.increment / 100;
-        let all_percents = percent * growth.base_value * total_iterations;
-        result = value + all_percents;
-      }
-      if(growth.type == 'compound_interest') {
-        let percent = (1 + growth.increment / 100);
-        result = value * Math.pow(percent, total_iterations);
+    _calcByTotalIterations: function(value, totalIterations, growth) {
+      if(!growth) return value;
+      
+      let result = value;
+      let increment = growth.increment || 0;
+      let baseValue = growth.base_value || value;
+      
+      if(growth.type === 'simple') {
+        result = value + totalIterations * increment;
+      } else if(growth.type === 'percent') {
+        let percent = increment / 100;
+        let allPercents = percent * baseValue * totalIterations;
+        result = value + allPercents;
+      } else if(growth.type === 'compound_interest') {
+        let percent = (1 + increment / 100);
+        result = value * Math.pow(percent, totalIterations);
       }
       return result;
     },
 
     _getTotalIterationsWithLimit: function(growth) {
-      let total_iterations = this.totalIterations(growth);
-
-      if(!growth.max_iterations_count) return total_iterations;
-
-      let total = total_iterations + (growth.completed_iterations_count || 0);
-      if(total < growth.max_iterations_count) {
-        return total_iterations;
-      }
+      if(!growth) return 0;
       
-      return growth.max_iterations_count - (growth.completed_iterations_count || 0);
+      let totalIterations = this.totalIterations(growth);
+      if(!growth.max_iterations_count) return totalIterations;
+
+      let completedCount = growth.completed_iterations_count || 0;
+      let total = totalIterations + completedCount;
+      return total < growth.max_iterations_count ? totalIterations : growth.max_iterations_count - completedCount;
     },
 
     _calcValue: function(value, growth) {
-      let total_iterations = this._getTotalIterationsWithLimit(growth);
-
-      if(total_iterations < 1) return value;
-
-      let fraction = total_iterations % 1;
-      total_iterations = total_iterations - fraction;
-
-      let result = this._calcByTotalIterations(value, total_iterations, growth);
-
-      growth.completed_iterations_count = (growth.completed_iterations_count || 0) + total_iterations;
+      if(!growth || Object.keys(growth).length === 0) return value;
       
+      let totalIterations = this._getTotalIterationsWithLimit(growth);
+      if(totalIterations < 1) return value;
+
+      let fraction = totalIterations % 1;
+      totalIterations = totalIterations - fraction;
+
+      let result = this._calcByTotalIterations(value, totalIterations, growth);
+      growth.completed_iterations_count = (growth.completed_iterations_count || 0) + totalIterations;
       result = this._calcMinMax(result, growth);
-      
       this._updateIteration(growth, fraction * 1000);
-
       return result;
     },
 
     getValue: function(value) {
       let growth = this.info();
-      if(!growth) return value;
-      if(!growth.enabled) return value;
-
-      let new_value = this._calcValue(value, growth);
-
-      if(!new_value) return value;
-
-      this.resource._set(new_value);  // Update value
-
-      return new_value;
+      if(!growth || !growth.enabled) return value;
+      let newValue = this._calcValue(value, growth);
+      if(typeof newValue !== 'number' || isNaN(newValue)) return value;
+      // FIXED: Remove the problematic _set call
+      return newValue;
     },
 
     _updateIteration: function(growth, fraction) {
       if(!growth) growth = this.info();
-      if(!growth) return false;
+      if(!growth || Object.keys(growth).length === 0) return false;
 
-      let started_at = (new Date().getTime());
-      if(fraction) started_at = started_at - fraction;
-
-      growth.started_at = started_at;
-
-      return Bot.setProperty(this.propName(), growth, 'json');
+      let startedAt = (new Date().getTime());
+      if(fraction) startedAt = startedAt - fraction;
+      growth.started_at = startedAt;
+      try {
+        Bot.setProperty(this.propName(), growth, 'json');
+        return true;
+      } catch (e) {
+        return false;
+      }
     },
 
-    _updateBaseValue: function(base_value) {
+    _updateBaseValue: function(baseValue) {
       let growth = this.info();
-      if(!growth) return false;
-
-      growth.base_value = base_value;
-      return Bot.setProperty(this.propName(), growth, 'json');
+      if(!growth || Object.keys(growth).length === 0) return false;
+      growth.base_value = baseValue;
+      try {
+        Bot.setProperty(this.propName(), growth, 'json');
+        return true;
+      } catch (e) {
+        return false;
+      }
     },
 
     _newGrowth: function(options) {
+      options = options || {};
       return {
         base_value: this.resource.baseValue(),
         increment: options.increment || 0,
@@ -187,22 +192,30 @@ const createGrowthResource = function(resource) {
     _addAs: function(options) {
       let growth = this._newGrowth(options);
       growth.started_at = new Date().getTime();
-      return Bot.setProperty(this.propName(), growth, 'json');
+      try {
+        Bot.setProperty(this.propName(), growth, 'json');
+        return true;
+      } catch (e) {
+        return false;
+      }
     },
 
     add: function(options) {
+      options = options || {};
       options.type = 'simple';
       options.increment = options.value || 0;
       return this._addAs(options);
     },
 
     addPercent: function(options) {
+      options = options || {};
       options.type = 'percent';
       options.increment = options.percent || 0;
       return this._addAs(options);
     },
 
     addCompoundInterest: function(options) {
+      options = options || {};
       options.type = 'compound_interest';
       options.increment = options.percent || 0;
       return this._addAs(options);
@@ -211,162 +224,194 @@ const createGrowthResource = function(resource) {
 };
 
 const createResource = function(objName, objID, resName) {
+  // Safe parameter handling
+  objName = objName || 'unknown';
+  objID = objID || '0';
+  resName = resName || 'resource';
+  
   return {
     objName: objName,
     objID: objID,
     name: resName,
     growth: null,
 
-    _setGrowth: function(growth) {
-      this.growth = growth;
+    _setGrowth: function(growth) { 
+      this.growth = growth; 
     },
 
-    propName: function() {
-      return libPrefix + this.objName + this.objID + '_' + this.name;
+    propName: function() { 
+      return libPrefix + (this.objName || '') + (this.objID || '') + '_' + (this.name || ''); 
     },
 
-    isNumber: function(value) { 
-      return typeof value == 'number' && !isNaN(value);
-    },
-
-    verifyNumber: function(value) { 
-      if(!this.isNumber(value)) {
-        let evalue = '';
-        if(typeof value != 'undefined') { 
-          evalue = JSON.stringify(value); 
-        }
-        throw 'ResLib: value must be number only. It is not number: ' + typeof value + ' ' + evalue;
+    _convertToNumber: function(value) {
+      if (value === null || value === undefined) return 0;
+      if (typeof value === 'string') {
+        let parsed = parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
       }
-      return value;
+      if (typeof value === 'number') return value;
+      return 0;
     },
 
-    removeRes: function(res_amount) {
-      this.set(this.value() - res_amount);
+    isNumber: function(value) {
+      value = this._convertToNumber(value);
+      return typeof value === 'number' && !isNaN(value);
+    },
+
+    verifyNumber: function(value) {
+      if (value === null || value === undefined) return 0;
+      
+      let converted = this._convertToNumber(value);
+      if (isNaN(converted)) {
+        return 0;
+      }
+      return converted;
+    },
+
+    removeRes: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      let currentValue = this.baseValue(); // FIXED: Use baseValue
+      this._set(currentValue - resAmount);
       return true;
     },
 
     baseValue: function() {
-      let cur_value = Bot.getProperty(this.propName());
-      if(typeof cur_value == 'undefined') return 0;
-      
-      // Ensure it's a number
-      let numValue = parseFloat(cur_value);
-      return isNaN(numValue) ? 0 : numValue;
+      try {
+        let curValue = Bot.getProperty(this.propName());
+        return this.verifyNumber(curValue);
+      } catch (e) {
+        return 0;
+      }
     },
 
     value: function() {
-      let cur_value = this.baseValue();
-
-      if(this._withEnabledGrowth()) {
-        return this.growth.getValue(cur_value);
+      try {
+        let curValue = this.baseValue();
+        if (this._withEnabledGrowth() && this.growth) {
+          let grownValue = this.growth.getValue(curValue);
+          // Only update if growth actually changed the value
+          if (grownValue !== curValue) {
+            this._set(grownValue);
+            if (this.growth && this.growth._updateBaseValue) {
+              this.growth._updateBaseValue(grownValue);
+            }
+          }
+          return grownValue;
+        }
+        return curValue;
+      } catch (e) {
+        return 0;
       }
-      return cur_value;
     },
     
-    add: function(res_amount) {
-      this.verifyNumber(res_amount);
-      this.set(this.value() + res_amount);
+    add: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
+      let newValue = currentValue + resAmount;
+      this._set(newValue); // FIXED: Use _set instead of set()
+      
+      // Update growth base value
+      if (this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
+        this.growth._updateBaseValue(newValue);
+      }
       return true;
     },
 
-    have: function(res_amount) {
-      this.verifyNumber(res_amount);
-      if(res_amount <= 0) return false;
-      return this.value() >= res_amount;
+    have: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      let currentValue = this.value();
+      return resAmount > 0 && currentValue >= resAmount;
     },
     
-    remove: function(res_amount) {
-      if(!this.have(res_amount)) {
-        throw 'ResLib: not enough resources';
-      }
-      return this.removeRes(res_amount);
+    remove: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      if(!this.have(resAmount)) return false;
+      return this.removeRes(resAmount);
     },
     
-    removeAnyway: function(res_amount) {
-      this.verifyNumber(res_amount);
-      return this.removeRes(res_amount);
+    removeAnyway: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      return this.removeRes(resAmount);
     },
 
-    _withEnabledGrowth: function() {
-      return (this.growth && this.growth.isEnabled());
+    _withEnabledGrowth: function() { 
+      return this.growth && this.growth.isEnabled && this.growth.isEnabled();
     },
 
-    _set: function(res_amount) {
-      this.verifyNumber(res_amount);
-      Bot.setProperty(this.propName(), res_amount);
-      return true;
-    },
-
-    set: function(res_amount) {
-      this.verifyNumber(res_amount);
-
-      if(this._withEnabledGrowth()) {
-        this.growth._updateBaseValue(res_amount);
+    _set: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      try {
+        Bot.setProperty(this.propName(), resAmount);
+        return true;
+      } catch (e) {
+        return false;
       }
-      return this._set(res_amount);
     },
 
-    anywayTakeFromAndTransferTo: function(fromResource, toResource, res_amount) {
-      if(fromResource.name != toResource.name) {
-        throw 'ResLib: can not transfer different resources';
+    set: function(resAmount) {
+      resAmount = this.verifyNumber(resAmount);
+      if(this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
+        this.growth._updateBaseValue(resAmount);
       }
+      return this._set(resAmount);
+    },
 
-      if(fromResource.removeAnyway(res_amount)) {
-        return toResource.add(res_amount);
-      }
+    anywayTakeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(!fromResource || !toResource) return false;
+      if(fromResource.name !== toResource.name) return false;
+      if(fromResource.removeAnyway(resAmount)) return toResource.add(resAmount);
       return false;
     },
 
-    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount) {
-      if(fromResource.removeAnyway(remove_amount)) {
-        return toResource.add(add_amount);
-      }
+    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(!fromResource || !toResource) return false;
+      if(fromResource.removeAnyway(removeAmount)) return toResource.add(addAmount);
       return false;
     },
 
-    takeFromAndTransferTo: function(fromResource, toResource, res_amount) {
-      if(!fromResource.have(res_amount)) {
-        throw 'ResLib: not enough resources for transfer';
-      }
-
-      return this.anywayTakeFromAndTransferTo(fromResource, toResource, res_amount);
+    takeFromAndTransferTo: function(fromResource, toResource, resAmount) {
+      if(!fromResource || !toResource) return false;
+      if(!fromResource.have(resAmount)) return false;
+      return this.anywayTakeFromAndTransferTo(fromResource, toResource, resAmount);
     },
 
-    takeFromAndTransferToDifferent: function(fromResource, toResource, remove_amount, add_amount) {
-      if(!fromResource.have(remove_amount)) {
-        throw 'ResLib: not enough resources for transfer';
-      }
-
-      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, remove_amount, add_amount);
+    takeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
+      if(!fromResource || !toResource) return false;
+      if(!fromResource.have(removeAmount)) return false;
+      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, removeAmount, addAmount);
     },
 
-    takeFromAnother: function(anotherResource, res_amount) {
-      return this.takeFromAndTransferTo(anotherResource, this, res_amount);
+    takeFromAnother: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    transferTo: function(anotherResource, res_amount) {
-      return this.takeFromAndTransferTo(this, anotherResource, res_amount);
+    transferTo: function(anotherResource, resAmount) {
+      return this.takeFromAndTransferTo(this, anotherResource, resAmount);
     },
 
     exchangeTo: function(anotherResource, options) {
-      return this.takeFromAndTransferToDifferent(this, 
-        anotherResource, options.remove_amount || 0, options.add_amount || 0);
+      if(!options) return false;
+      return this.takeFromAndTransferToDifferent(this, anotherResource, options.remove_amount || 0, options.add_amount || 0);
     },
 
-    takeFromAnotherAnyway: function(anotherResource, res_amount) {
-      return this.anywayTakeFromAndTransferTo(anotherResource, this, res_amount);
+    takeFromAnotherAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(anotherResource, this, resAmount);
     },
 
-    transferToAnyway: function(anotherResource, res_amount) {
-      return this.anywayTakeFromAndTransferTo(this, anotherResource, res_amount);
+    transferToAnyway: function(anotherResource, resAmount) {
+      return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
     }
   };
 };
 
 const createGrowth = function(resource) {
-  let growth = createGrowthResource(resource);
-  resource._setGrowth(growth);
-  return growth;
+  try {
+    let growth = createGrowthResource(resource);
+    resource._setGrowth(growth);
+    return growth;
+  } catch (e) {
+    return null;
+  }
 };
 
 const getResource = function(object, objectID, resName) {
@@ -375,7 +420,6 @@ const getResource = function(object, objectID, resName) {
     createGrowth(res);
     return res;
   } catch (e) {
-    // Fallback for errors
     return {
       value: function() { return 0; },
       add: function() { return false; },
@@ -387,7 +431,7 @@ const getResource = function(object, objectID, resName) {
   }
 };
 
-// Global resource function
+// Global resource - accessible by all users
 const getGlobalResource = function(resName) {
   return getResource('global', 'shared', resName);
 };
