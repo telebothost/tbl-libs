@@ -470,6 +470,5 @@ Bot.inspect(globalCoins.value())
 first should print 0 its working 
 then adding 60 
 then it giving 0 again 
-
-but next time 60 first then 0 again 
+but next time 60 first then 0 again
 */
