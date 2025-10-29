@@ -143,7 +143,7 @@ const createGrowthResource = function(resource) {
       if(!growth || !growth.enabled) return value;
       let newValue = this._calcValue(value, growth);
       if(typeof newValue !== 'number' || isNaN(newValue)) return value;
-      // FIXED: Remove the problematic _set call
+      this.resource._set(newValue);
       return newValue;
     },
 
@@ -270,8 +270,8 @@ const createResource = function(objName, objID, resName) {
 
     removeRes: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue
-      this._set(currentValue - resAmount);
+      let currentValue = this.value();
+      this.set(currentValue - resAmount);
       return true;
     },
 
@@ -288,15 +288,7 @@ const createResource = function(objName, objID, resName) {
       try {
         let curValue = this.baseValue();
         if (this._withEnabledGrowth() && this.growth) {
-          let grownValue = this.growth.getValue(curValue);
-          // Only update if growth actually changed the value
-          if (grownValue !== curValue) {
-            this._set(grownValue);
-            if (this.growth && this.growth._updateBaseValue) {
-              this.growth._updateBaseValue(grownValue);
-            }
-          }
-          return grownValue;
+          return this.growth.getValue(curValue);
         }
         return curValue;
       } catch (e) {
@@ -306,14 +298,8 @@ const createResource = function(objName, objID, resName) {
     
     add: function(resAmount) {
       resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
-      let newValue = currentValue + resAmount;
-      this._set(newValue); // FIXED: Use _set instead of set()
-      
-      // Update growth base value
-      if (this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
-        this.growth._updateBaseValue(newValue);
-      }
+      let currentValue = this.value();
+      this.set(currentValue + resAmount);
       return true;
     },
 
@@ -420,6 +406,7 @@ const getResource = function(object, objectID, resName) {
     createGrowth(res);
     return res;
   } catch (e) {
+    // demo response so your code wouldn\'t crash anymore 
     return {
       value: function() { return 0; },
       add: function() { return false; },
@@ -467,6 +454,22 @@ module.exports = {
   chatRes: getChatResource,
   anotherUserRes: getAnotherUserResource,
   anotherChatRes: getAnotherChatResource,
-  globalRes: getGlobalResource,
+  globalRes: getGlobalResource, // New global resource function
   growthFor: createGrowth
 };
+
+/*
+Here a problem 
+
+
+const globalCoins = Libs.ResourcesLib.globalRes("total_coins");
+Bot.inspect(globalCoins.value())
+globalCoins.add(60)
+Bot.inspect(globalCoins.value())
+
+first should print 0 its working 
+then adding 60 
+then it giving 0 again 
+
+but next time 60 first then 0 again 
+*/
