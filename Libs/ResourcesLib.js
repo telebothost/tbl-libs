@@ -1,466 +1,357 @@
-const libPrefix = 'ResourcesLib_';
+const libPrefix = 'ResourcesLib_'
 
 const createGrowthResource = function(resource) {
   return {
-    resource: resource,
+    resource,
 
-    propName: function() { 
-      return (this.resource.propName() || '') + '_growth' 
+    propName() {
+      return (this.resource.propName() || '') + '_growth'
     },
 
-    info: function() {
+    info() {
       try {
-        return Bot.getProperty(this.propName()) || {};
-      } catch (e) {
-        return {};
+        return Bot.getProperty(this.propName()) || {}
+      } catch {
+        return {}
       }
     },
 
-    title: function() {
-      if(!this.isEnabled()) return '';
-
-      let growth = this.info();
-      let increment = growth.increment || 0;
-      let interval = growth.interval || 0;
-      let startText = 'add ' + String(increment);
-      let middleText = ' once at ' + String(interval) + ' secs';
-
-      if(growth.type === 'simple') return startText + middleText;
-      if(growth.type === 'percent') return startText + '%' + middleText;
-      if(growth.type === 'compound_interest') return startText + '%' + middleText + ' with reinvesting';
-      
-      return '';
+    isEnabled() {
+      const g = this.info()
+      return g && g.enabled === true
     },
 
-    have: function() { 
-      let info = this.info();
-      return info && Object.keys(info).length > 0;
+    have() {
+      const g = this.info()
+      return g && Object.keys(g).length > 0
     },
 
-    isEnabled: function() {
-      let growth = this.info();
-      return growth ? (growth.enabled === true) : false;
+    title() {
+      if (!this.isEnabled()) return ''
+      const g = this.info()
+      const inc = g.increment || 0
+      const intv = g.interval || 0
+      const t = g.type
+      if (t === 'simple') return `add ${inc} once at ${intv}s`
+      if (t === 'percent') return `add ${inc}% once at ${intv}s`
+      if (t === 'compound_interest') return `add ${inc}% once at ${intv}s with reinvesting`
+      return ''
     },
-    
-    _toggle: function(status) {
-      let growth = this.info();
-      if(!growth || Object.keys(growth).length === 0) return false;
-      growth.enabled = status;
+
+    _toggle(s) {
+      const g = this.info()
+      if (!g || Object.keys(g).length === 0) return false
+      g.enabled = s
       try {
-        Bot.setProperty(this.propName(), growth, 'json');
-        return true;
-      } catch (e) {
-        return false;
+        Bot.setProperty(this.propName(), g, 'json')
+        return true
+      } catch {
+        return false
       }
     },
 
-    stop: function() { 
-      return this._toggle(false); 
+    stop() {
+      return this._toggle(false)
     },
 
-    progress: function() {
-      let growth = this.info();
-      if(!growth || Object.keys(growth).length === 0) return 0;
-      let totalIterations = this.totalIterations(growth);
-      let fraction = totalIterations % 1;
-      return fraction * 100;
+    totalIterations(g) {
+      if (!g) g = this.info()
+      if (!g || !g.started_at) return 0
+      const now = Date.now()
+      const start = g.started_at || now
+      const interval = g.interval || 1
+      return (now - start) / 1000 / interval
     },
 
-    willCompleteAfter: function() {
-      let growth = this.info();
-      if(!growth || Object.keys(growth).length === 0) return 0;
-      let interval = growth.interval || 0;
-      return interval - this.progress() / 100 * interval;
+    _calcMinMax(v, g) {
+      if (!g) return v
+      if (typeof g.min === 'number' && v < g.min) v = g.min
+      if (typeof g.max === 'number' && v > g.max) v = g.max
+      return v
     },
 
-    totalIterations: function(growth) {
-      if(!growth) growth = this.info();
-      if(!growth || !growth.started_at) return 0;
-      
-      let now = (new Date().getTime());
-      let startedAt = growth.started_at || now;
-      let interval = growth.interval || 1;
-      let durationInSeconds = (now - startedAt) / 1000;
-      return durationInSeconds / interval;
+    _calcByTotalIterations(v, t, g) {
+      const inc = g.increment || 0
+      const base = g.base_value || v
+      if (g.type === 'simple') return v + t * inc
+      if (g.type === 'percent') return v + base * (inc / 100) * t
+      if (g.type === 'compound_interest') return v * Math.pow(1 + inc / 100, t)
+      return v
     },
 
-    _calcMinMax: function(result, growth) {
-      if(!growth) return result;
-      if(typeof growth.min === 'number' && growth.min > result) return growth.min;
-      if(typeof growth.max === 'number' && growth.max < result) return growth.max;
-      return result;
+    _getTotalIterationsWithLimit(g) {
+      if (!g) return 0
+      const t = this.totalIterations(g)
+      if (!g.max_iterations_count) return t
+      const done = g.completed_iterations_count || 0
+      return Math.min(t, g.max_iterations_count - done)
     },
 
-    _calcByTotalIterations: function(value, totalIterations, growth) {
-      if(!growth) return value;
-      
-      let result = value;
-      let increment = growth.increment || 0;
-      let baseValue = growth.base_value || value;
-      
-      if(growth.type === 'simple') {
-        result = value + totalIterations * increment;
-      } else if(growth.type === 'percent') {
-        let percent = increment / 100;
-        let allPercents = percent * baseValue * totalIterations;
-        result = value + allPercents;
-      } else if(growth.type === 'compound_interest') {
-        let percent = (1 + increment / 100);
-        result = value * Math.pow(percent, totalIterations);
-      }
-      return result;
+    _calcValue(v, g) {
+      if (!g || Object.keys(g).length === 0) return v
+      let t = this._getTotalIterationsWithLimit(g)
+      if (t < 1) return v
+      const frac = t % 1
+      t -= frac
+      let res = this._calcByTotalIterations(v, t, g)
+      g.completed_iterations_count = (g.completed_iterations_count || 0) + t
+      res = this._calcMinMax(res, g)
+      this._updateIteration(g, frac * 1000)
+      return res
     },
 
-    _getTotalIterationsWithLimit: function(growth) {
-      if(!growth) return 0;
-      
-      let totalIterations = this.totalIterations(growth);
-      if(!growth.max_iterations_count) return totalIterations;
-
-      let completedCount = growth.completed_iterations_count || 0;
-      let total = totalIterations + completedCount;
-      return total < growth.max_iterations_count ? totalIterations : growth.max_iterations_count - completedCount;
+    getValue(v) {
+      const g = this.info()
+      if (!g || !g.enabled || !g.started_at) return v
+      const newV = this._calcValue(v, g)
+      if (typeof newV !== 'number' || isNaN(newV)) return v
+      this.resource._set(newV)
+      return newV
     },
 
-    _calcValue: function(value, growth) {
-      if(!growth || Object.keys(growth).length === 0) return value;
-      
-      let totalIterations = this._getTotalIterationsWithLimit(growth);
-      if(totalIterations < 1) return value;
-
-      let fraction = totalIterations % 1;
-      totalIterations = totalIterations - fraction;
-
-      let result = this._calcByTotalIterations(value, totalIterations, growth);
-      growth.completed_iterations_count = (growth.completed_iterations_count || 0) + totalIterations;
-      result = this._calcMinMax(result, growth);
-      this._updateIteration(growth, fraction * 1000);
-      return result;
-    },
-
-    getValue: function(value) {
-      let growth = this.info();
-      if(!growth || !growth.enabled) return value;
-      let newValue = this._calcValue(value, growth);
-      if(typeof newValue !== 'number' || isNaN(newValue)) return value;
-      // FIXED: Remove the problematic _set call
-      return newValue;
-    },
-
-    _updateIteration: function(growth, fraction) {
-      if(!growth) growth = this.info();
-      if(!growth || Object.keys(growth).length === 0) return false;
-
-      let startedAt = (new Date().getTime());
-      if(fraction) startedAt = startedAt - fraction;
-      growth.started_at = startedAt;
+    _updateIteration(g, f) {
+      if (!g) g = this.info()
+      if (!g || Object.keys(g).length === 0) return false
+      let start = Date.now()
+      if (f) start -= f
+      g.started_at = start
       try {
-        Bot.setProperty(this.propName(), growth, 'json');
-        return true;
-      } catch (e) {
-        return false;
+        Bot.setProperty(this.propName(), g, 'json')
+        return true
+      } catch {
+        return false
       }
     },
 
-    _updateBaseValue: function(baseValue) {
-      let growth = this.info();
-      if(!growth || Object.keys(growth).length === 0) return false;
-      growth.base_value = baseValue;
+    _updateBaseValue(v) {
+      const g = this.info()
+      if (!g || Object.keys(g).length === 0) return false
+      g.base_value = v
       try {
-        Bot.setProperty(this.propName(), growth, 'json');
-        return true;
-      } catch (e) {
-        return false;
+        Bot.setProperty(this.propName(), g, 'json')
+        return true
+      } catch {
+        return false
       }
     },
 
-    _newGrowth: function(options) {
-      options = options || {};
+    _newGrowth(o = {}) {
       return {
         base_value: this.resource.baseValue(),
-        increment: options.increment || 0,
-        interval: options.interval || 60,
-        type: options.type || 'simple',
-        min: options.min || null,
-        max: options.max || null,
-        max_iterations_count: options.max_iterations_count || null,
+        increment: o.increment || 0,
+        interval: o.interval || 60,
+        type: o.type || 'simple',
+        min: o.min || null,
+        max: o.max || null,
+        max_iterations_count: o.max_iterations_count || null,
         enabled: true,
-        completed_iterations_count: 0
-      };
-    },
-
-    _addAs: function(options) {
-      let growth = this._newGrowth(options);
-      growth.started_at = new Date().getTime();
-      try {
-        Bot.setProperty(this.propName(), growth, 'json');
-        return true;
-      } catch (e) {
-        return false;
+        completed_iterations_count: 0,
+        started_at: Date.now()
       }
     },
 
-    add: function(options) {
-      options = options || {};
-      options.type = 'simple';
-      options.increment = options.value || 0;
-      return this._addAs(options);
+    _addAs(o) {
+      const g = this._newGrowth(o)
+      try {
+        Bot.setProperty(this.propName(), g, 'json')
+        return true
+      } catch {
+        return false
+      }
     },
 
-    addPercent: function(options) {
-      options = options || {};
-      options.type = 'percent';
-      options.increment = options.percent || 0;
-      return this._addAs(options);
+    add(o = {}) {
+      o.type = 'simple'
+      o.increment = o.value || 0
+      return this._addAs(o)
     },
 
-    addCompoundInterest: function(options) {
-      options = options || {};
-      options.type = 'compound_interest';
-      options.increment = options.percent || 0;
-      return this._addAs(options);
+    addPercent(o = {}) {
+      o.type = 'percent'
+      o.increment = o.percent || 0
+      return this._addAs(o)
+    },
+
+    addCompoundInterest(o = {}) {
+      o.type = 'compound_interest'
+      o.increment = o.percent || 0
+      return this._addAs(o)
     }
-  };
-};
+  }
+}
 
-const createResource = function(objName, objID, resName) {
-  // Safe parameter handling
-  objName = objName || 'unknown';
-  objID = objID || '0';
-  resName = resName || 'resource';
-  
+const createResource = function(objName = 'unknown', objID = '0', resName = 'resource') {
   return {
-    objName: objName,
-    objID: objID,
+    objName,
+    objID,
     name: resName,
     growth: null,
 
-    _setGrowth: function(growth) { 
-      this.growth = growth; 
+    _setGrowth(g) {
+      this.growth = g
     },
 
-    propName: function() { 
-      return libPrefix + (this.objName || '') + (this.objID || '') + '_' + (this.name || ''); 
+    propName() {
+      return libPrefix + this.objName + this.objID + '_' + this.name
     },
 
-    _convertToNumber: function(value) {
-      if (value === null || value === undefined) return 0;
-      if (typeof value === 'string') {
-        let parsed = parseFloat(value);
-        return isNaN(parsed) ? 0 : parsed;
+    _num(v) {
+      if (v === null || v === undefined) return 0
+      if (typeof v === 'string') {
+        const p = parseFloat(v)
+        return isNaN(p) ? 0 : p
       }
-      if (typeof value === 'number') return value;
-      return 0;
+      return typeof v === 'number' ? v : 0
     },
 
-    isNumber: function(value) {
-      value = this._convertToNumber(value);
-      return typeof value === 'number' && !isNaN(value);
+    verifyNumber(v) {
+      return this._num(v)
     },
 
-    verifyNumber: function(value) {
-      if (value === null || value === undefined) return 0;
-      
-      let converted = this._convertToNumber(value);
-      if (isNaN(converted)) {
-        return 0;
-      }
-      return converted;
-    },
-
-    removeRes: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue
-      this._set(currentValue - resAmount);
-      return true;
-    },
-
-    baseValue: function() {
+    baseValue() {
       try {
-        let curValue = Bot.getProperty(this.propName());
-        return this.verifyNumber(curValue);
-      } catch (e) {
-        return 0;
+        return this.verifyNumber(Bot.getProperty(this.propName()))
+      } catch {
+        return 0
       }
     },
 
-    value: function() {
+    _withEnabledGrowth() {
+      return this.growth && this.growth.isEnabled && this.growth.isEnabled()
+    },
+
+    _set(v) {
+      v = this.verifyNumber(v)
       try {
-        let curValue = this.baseValue();
-        if (this._withEnabledGrowth() && this.growth) {
-          let grownValue = this.growth.getValue(curValue);
-          // Only update if growth actually changed the value
-          if (grownValue !== curValue) {
-            this._set(grownValue);
-            if (this.growth && this.growth._updateBaseValue) {
-              this.growth._updateBaseValue(grownValue);
-            }
-          }
-          return grownValue;
-        }
-        return curValue;
-      } catch (e) {
-        return 0;
+        Bot.setProperty(this.propName(), v, 'float')
+        return true
+      } catch {
+        return false
       }
     },
-    
-    add: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.baseValue(); // FIXED: Use baseValue instead of value()
-      let newValue = currentValue + resAmount;
-      this._set(newValue); // FIXED: Use _set instead of set()
-      
-      // Update growth base value
-      if (this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
-        this.growth._updateBaseValue(newValue);
-      }
-      return true;
-    },
 
-    have: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      let currentValue = this.value();
-      return resAmount > 0 && currentValue >= resAmount;
-    },
-    
-    remove: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      if(!this.have(resAmount)) return false;
-      return this.removeRes(resAmount);
-    },
-    
-    removeAnyway: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      return this.removeRes(resAmount);
-    },
-
-    _withEnabledGrowth: function() { 
-      return this.growth && this.growth.isEnabled && this.growth.isEnabled();
-    },
-
-    _set: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
+    value() {
       try {
-        Bot.setProperty(this.propName(), resAmount);
-        return true;
-      } catch (e) {
-        return false;
+        const v = this.baseValue()
+        const g = this.growth ? this.growth.info() : null
+        if (g && g.enabled === true) return this.growth.getValue(v)
+        return v
+      } catch {
+        return 0
       }
     },
 
-    set: function(resAmount) {
-      resAmount = this.verifyNumber(resAmount);
-      if(this._withEnabledGrowth() && this.growth && this.growth._updateBaseValue) {
-        this.growth._updateBaseValue(resAmount);
-      }
-      return this._set(resAmount);
+    set(v) {
+      v = this.verifyNumber(v)
+      if (this._withEnabledGrowth() && this.growth._updateBaseValue)
+        this.growth._updateBaseValue(v)
+      return this._set(v)
     },
 
-    anywayTakeFromAndTransferTo: function(fromResource, toResource, resAmount) {
-      if(!fromResource || !toResource) return false;
-      if(fromResource.name !== toResource.name) return false;
-      if(fromResource.removeAnyway(resAmount)) return toResource.add(resAmount);
-      return false;
+    add(v) {
+      v = this.verifyNumber(v)
+      return this.set(this.value() + v)
     },
 
-    anywayTakeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
-      if(!fromResource || !toResource) return false;
-      if(fromResource.removeAnyway(removeAmount)) return toResource.add(addAmount);
-      return false;
+    have(v) {
+      v = this.verifyNumber(v)
+      return v > 0 && this.value() >= v
     },
 
-    takeFromAndTransferTo: function(fromResource, toResource, resAmount) {
-      if(!fromResource || !toResource) return false;
-      if(!fromResource.have(resAmount)) return false;
-      return this.anywayTakeFromAndTransferTo(fromResource, toResource, resAmount);
+    remove(v) {
+      v = this.verifyNumber(v)
+      if (!this.have(v)) return false
+      return this.set(this.value() - v)
     },
 
-    takeFromAndTransferToDifferent: function(fromResource, toResource, removeAmount, addAmount) {
-      if(!fromResource || !toResource) return false;
-      if(!fromResource.have(removeAmount)) return false;
-      return this.anywayTakeFromAndTransferToDifferent(fromResource, toResource, removeAmount, addAmount);
+    removeAnyway(v) {
+      v = this.verifyNumber(v)
+      return this.set(this.value() - v)
     },
 
-    takeFromAnother: function(anotherResource, resAmount) {
-      return this.takeFromAndTransferTo(anotherResource, this, resAmount);
+    anywayTakeFromAndTransferTo(from, to, v) {
+      if (!from || !to || from.name !== to.name) return false
+      if (from.removeAnyway(v)) return to.add(v)
+      return false
     },
 
-    transferTo: function(anotherResource, resAmount) {
-      return this.takeFromAndTransferTo(this, anotherResource, resAmount);
+    anywayTakeFromAndTransferToDifferent(from, to, rm, add) {
+      if (!from || !to) return false
+      if (from.removeAnyway(rm)) return to.add(add)
+      return false
     },
 
-    exchangeTo: function(anotherResource, options) {
-      if(!options) return false;
-      return this.takeFromAndTransferToDifferent(this, anotherResource, options.remove_amount || 0, options.add_amount || 0);
+    takeFromAndTransferTo(from, to, v) {
+      if (!from || !to || !from.have(v)) return false
+      return this.anywayTakeFromAndTransferTo(from, to, v)
     },
 
-    takeFromAnotherAnyway: function(anotherResource, resAmount) {
-      return this.anywayTakeFromAndTransferTo(anotherResource, this, resAmount);
+    takeFromAndTransferToDifferent(from, to, rm, add) {
+      if (!from || !to || !from.have(rm)) return false
+      return this.anywayTakeFromAndTransferToDifferent(from, to, rm, add)
     },
 
-    transferToAnyway: function(anotherResource, resAmount) {
-      return this.anywayTakeFromAndTransferTo(this, anotherResource, resAmount);
+    takeFromAnother(another, v) {
+      return this.takeFromAndTransferTo(another, this, v)
+    },
+
+    transferTo(another, v) {
+      return this.takeFromAndTransferTo(this, another, v)
+    },
+
+    exchangeTo(another, o) {
+      if (!o) return false
+      return this.takeFromAndTransferToDifferent(this, another, o.remove_amount || 0, o.add_amount || 0)
+    },
+
+    takeFromAnotherAnyway(another, v) {
+      return this.anywayTakeFromAndTransferTo(another, this, v)
+    },
+
+    transferToAnyway(another, v) {
+      return this.anywayTakeFromAndTransferTo(this, another, v)
     }
-  };
-};
+  }
+}
 
 const createGrowth = function(resource) {
   try {
-    let growth = createGrowthResource(resource);
-    resource._setGrowth(growth);
-    return growth;
-  } catch (e) {
-    return null;
+    const g = createGrowthResource(resource)
+    resource._setGrowth(g)
+    return g
+  } catch {
+    return null
   }
-};
+}
 
-const getResource = function(object, objectID, resName) {
+const getResource = function(obj, id, res) {
   try {
-    let res = createResource(object, objectID, resName);
-    createGrowth(res);
-    return res;
-  } catch (e) {
+    const r = createResource(obj, id, res)
+    createGrowth(r)
+    return r
+  } catch {
     return {
-      value: function() { return 0; },
-      add: function() { return false; },
-      have: function() { return false; },
-      remove: function() { return false; },
-      set: function() { return false; },
-      baseValue: function() { return 0; }
-    };
+      value: () => 0,
+      add: () => false,
+      have: () => false,
+      remove: () => false,
+      set: () => false,
+      baseValue: () => 0
+    }
   }
-};
+}
 
-// Global resource - accessible by all users
-const getGlobalResource = function(resName) {
-  return getResource('global', 'shared', resName);
-};
-
-const getUserResource = function(resName) {
-  try {
-    let telegramId = (user && user.telegramid) ? user.telegramid : 'unknown';
-    return getResource('user', telegramId, resName);
-  } catch (e) {
-    return getResource('user', 'unknown', resName);
-  }
-};
-
-const getChatResource = function(resName) {
-  try {
-    let chatId = (chat && chat.chatid) ? chat.chatid : 'unknown';
-    return getResource('chat', chatId, resName);
-  } catch (e) {
-    return getResource('chat', 'unknown', resName);
-  }
-};
-
-const getAnotherUserResource = function(resName, telegramid) {
-  return getResource('user', telegramid || 'unknown', resName);
-};
-
-const getAnotherChatResource = function(resName, chatid) {
-  return getResource('chat', chatid || 'unknown', resName);
-};
+const getGlobalResource = res => getResource('global', 'shared', res)
+const getUserResource = res => {
+  const id = user && user.telegramid ? user.telegramid : 'unknown'
+  return getResource('user', id, res)
+}
+const getChatResource = res => {
+  const id = chat && chat.chatid ? chat.chatid : 'unknown'
+  return getResource('chat', id, res)
+}
+const getAnotherUserResource = (res, id) => getResource('user', id || 'unknown', res)
+const getAnotherChatResource = (res, id) => getResource('chat', id || 'unknown', res)
 
 module.exports = {
   userRes: getUserResource,
@@ -469,4 +360,4 @@ module.exports = {
   anotherChatRes: getAnotherChatResource,
   globalRes: getGlobalResource,
   growthFor: createGrowth
-};
+}
