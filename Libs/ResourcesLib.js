@@ -263,7 +263,7 @@ let commonResource = function(objName, objID, resName){
     },
 
     removeRes: function(res_amount){
-      let current = this.value();
+      let current = this.baseValue();
       this.set(current - res_amount);
       return true;
     },
@@ -288,7 +288,7 @@ let commonResource = function(objName, objID, resName){
     add: function(res_amount){
       res_amount = Number(res_amount) || 0;
       this.verifyNumber(res_amount);
-      this.set(this.value() + res_amount);
+      this.set(this.baseValue() + res_amount);
       return true;
     },
 
