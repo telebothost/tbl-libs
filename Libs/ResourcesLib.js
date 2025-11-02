@@ -280,7 +280,10 @@ let commonResource = function(objName, objID, resName){
       let cur_value = this.baseValue();
 
       if(this._withEnabledGrowth()){
-        return this.growth.getValue(cur_value);
+        // FIXED: Calculate growth value without modifying stored value
+        let growth_info = this.growth.info();
+        let calculated_value = this.growth._calcValue(cur_value, growth_info);
+        return calculated_value;
       }
       return cur_value;
     },
