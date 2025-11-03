@@ -429,3 +429,9 @@ async function getTranslatedMessage(text, userId) {
 const welcomeMessage = await getTranslatedMessage("Welcome to our service!", user.id);
 Bot.sendMessage(welcomeMessage);
 ```
+
+## 🤝 Note
+- This documentation is generated with AI assistance. You may find inconsistencies.
+- Need help? Contact [FlashComAssistant](https://t.me/FlashComAssistant) I will guide you through any issues!
+
+Thank you for your understanding! 🙏
