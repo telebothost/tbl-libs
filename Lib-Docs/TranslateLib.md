@@ -6,20 +6,18 @@ A powerful translation library that makes your Telegram bot speak every language
 
 ## 🌟 Features
 
-- **12 Supported Languages** - Covering major global languages
-- **Triple API Fallback** - MyMemory + Google Translate + Lingva Translate for maximum reliability  
+- **12 Supported Languages** - Supports 12 languages
+- **Triple API Fallback** - MyMemory, Google Translate, Lingva Translate for maximum reliability  
 - **User Preferences** - Remember each user's language choice
 - **Free & No API Keys** - Uses free translation services
 - **Error Handling** - Proper error throwing with clear messages
 - **Rate Limiting** - Prevents hitting API limits with daily word tracking
 - **Usage Monitoring** - Real-time translation statistics
 
-## 📊 API Limits & Pricing
+## 📊 API Limits
 
 ### MyMemory Translation
 - **Free Limit**: 1,000 words/day per IP address
-- **No registration required**
-- **Reliable for small to medium bots**
 
 ### Google Translate (Unofficial)
 - **Free Limit**: No hard limits (unofficial endpoint)
@@ -141,7 +139,7 @@ Libs.TranslateLib.resetUsage();
 
 ## 💡 Complete Example
 
-### Multi-language Welcome Bot
+### Multi-language Welcome Bot Sample
 
 **Command: /start**
 ```javascript
