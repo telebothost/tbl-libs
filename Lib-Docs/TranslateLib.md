@@ -1,5 +1,3 @@
-Here's your **fully updated TranslateLib.md** reflecting all the changes:
-
 # TranslateLib - Multi-Language Translation for TBL
 
 A powerful translation library for creating multilingual Telegram bots! Automatically localizes **bot responses** into 12 languages based on user preferences, using free translation APIs with built-in error handling and usage limits.
