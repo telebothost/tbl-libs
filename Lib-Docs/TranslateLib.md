@@ -1,15 +1,18 @@
+Here's your **fully updated TranslateLib.md** reflecting all the changes:
+
 # TranslateLib - Multi-Language Translation for TBL
 
-A powerful translation library that makes your Telegram bot speak every language! Automatically translates messages using free, reliable translation APIs.
+A powerful translation library that makes your Telegram bot speak every language! Automatically translates messages using multiple free, reliable translation APIs with proper error handling and rate limiting.
 
 ## 🌟 Features
 
 - **12 Supported Languages** - Covering major global languages
-- **Dual API Fallback** - MyMemory + LibreTranslate for maximum reliability  
+- **Triple API Fallback** - MyMemory + Google Translate + Lingva Translate for maximum reliability  
 - **User Preferences** - Remember each user's language choice
-- **Auto-Detection** - Detect text language automatically
 - **Free & No API Keys** - Uses free translation services
-- **Error Resilient** - Graceful fallback if APIs fail
+- **Error Handling** - Proper error throwing with clear messages
+- **Rate Limiting** - Prevents hitting API limits with daily word tracking
+- **Usage Monitoring** - Real-time translation statistics
 
 ## 📊 API Limits & Pricing
 
@@ -18,15 +21,20 @@ A powerful translation library that makes your Telegram bot speak every language
 - **No registration required**
 - **Reliable for small to medium bots**
 
-### LibreTranslate
-- **Free Limit**: No hard limits (community-funded)
-- **Rate limiting**: ~10 requests/minute
+### Google Translate (Unofficial)
+- **Free Limit**: No hard limits (unofficial endpoint)
+- **Rate limiting**: Gentle limits to avoid blocking
 - **Best for fallback usage**
 
-### Recommended Usage
-- Perfect for bots with 100-500 daily users
-- Suitable for message translation, not bulk content
-- Automatic failover ensures service continuity
+### Lingva Translate
+- **Free Limit**: No limits (open source alternative)
+- **Rate limiting**: Community-funded service
+- **Excellent backup option**
+
+### Library Protection
+- **Daily Limit**: 1,000 words tracked automatically (MyMemory only)
+- **Text Length Limit**: 500 characters max per request
+- **Usage Monitoring**: Real-time word count tracking
 
 ## 🚀 Quick Start
 
@@ -39,12 +47,15 @@ Libs.TranslateLib.setUserLang(user.id, 'es');
 
 // Get user's current language
 const userLang = Libs.TranslateLib.getUserLang(user.id);
+
+// Check current usage
+const usage = Libs.TranslateLib.getUsageInfo();
 ```
 
 ## 📋 Core Methods
 
 ### `autoTranslate(text, targetLang)`
-Automatically translates text to target language or user's preferred language.
+Automatically translates text to target language or user's preferred language using triple API fallback.
 
 ```javascript
 // Translate to user's language
@@ -53,8 +64,12 @@ const message = await Libs.TranslateLib.autoTranslate("Welcome to our bot!");
 // Translate to specific language  
 const spanishText = await Libs.TranslateLib.autoTranslate("Hello", 'es');
 
-// If translation fails, returns original text
-const safeText = await Libs.TranslateLib.autoTranslate("Some text");
+// Handle translation errors
+try {
+  const translated = await Libs.TranslateLib.autoTranslate("Some text");
+} catch (error) {
+  Bot.sendMessage("Translation failed: " + error.message);
+}
 ```
 
 ### `setUserLang(userId, langCode)`
@@ -67,8 +82,12 @@ Libs.TranslateLib.setUserLang(user.id, 'fr');
 // Set to Hindi
 Libs.TranslateLib.setUserLang(user.id, 'hi');
 
-// Returns false if invalid language code
-const success = Libs.TranslateLib.setUserLang(user.id, 'invalid');
+// Throws error for invalid language code
+try {
+  Libs.TranslateLib.setUserLang(user.id, 'invalid');
+} catch (error) {
+  Bot.sendMessage(error.message);
+}
 ```
 
 ### `getUserLang(userId)`
@@ -87,15 +106,20 @@ const languages = Libs.TranslateLib.getSupportedLanguages();
 // Returns: {en: 'English', es: 'Spanish', fr: 'French', ...}
 ```
 
-### `detectLanguage(text)`
-Detects the language of given text.
+### `getUsageInfo()`
+Gets current translation usage statistics.
 
 ```javascript
-const detectedLang = await Libs.TranslateLib.detectLanguage("Hola mundo");
-// Returns: 'es'
+const usage = Libs.TranslateLib.getUsageInfo();
+// Returns: {wordsUsed: 150, wordsRemaining: 850, limit: 1000, resetDate: 'Mon Dec 11 2023'}
+```
 
-const englishLang = await Libs.TranslateLib.detectLanguage("Hello world");
-// Returns: 'en'
+### `resetUsage()`
+Resets the daily usage counter.
+
+```javascript
+Libs.TranslateLib.resetUsage();
+// Resets word count to 0 for current day
 ```
 
 ## 🌍 Supported Languages
@@ -122,22 +146,21 @@ const englishLang = await Libs.TranslateLib.detectLanguage("Hello world");
 **Command: /start**
 ```javascript
 const userLang = Libs.TranslateLib.getUserLang(user.id);
+const currentLangName = Libs.TranslateLib.languages[userLang];
 
-const welcomeMsg = `Welcome to our bot! 🌍
+const welcomeText = `Welcome! Your current language is ${currentLangName}. Use the button below to change language.`;
 
-✨ Features:
-• Multi-language support
-• Easy to use interface  
-• Free forever
+let translatedText;
+try {
+  translatedText = await Libs.TranslateLib.autoTranslate(welcomeText);
+} catch (error) {
+  translatedText = welcomeText;
+}
 
-Use /setlang to change your language.`;
-
-const translatedMsg = await Libs.TranslateLib.autoTranslate(welcomeMsg);
-
-Bot.sendMessage(translatedMsg, {
+Bot.sendMessage(translatedText, {
   reply_markup: {
     inline_keyboard: [
-      [{ text: "🌐 Change Language", callback_data: "change_lang" }]
+      [{ text: "Change Language", callback_data: "change_lang" }]
     ]
   }
 });
@@ -157,31 +180,44 @@ Object.keys(languages).forEach(langCode => {
   }]);
 });
 
-Bot.sendMessage("Select your preferred language:", {
-  reply_markup: { inline_keyboard: keyboard }
+const message = `Please select your language:\nCurrent: ${languages[currentLang]}`;
+
+Bot.sendMessage(message, {
+  reply_markup: {
+    inline_keyboard: keyboard
+  }
 });
 ```
 
 **Command: ***
 ```javascript
-if (update.callback_query?.data?.startsWith('set_lang_')) {
-  const langCode = update.callback_query.data.replace('set_lang_', '');
+if (update.callback_query) {
+  const data = update.callback_query.data;
   
-  if (Libs.TranslateLib.setUserLang(user.id, langCode)) {
-    const successMsg = await Libs.TranslateLib.autoTranslate(
-      "Language changed successfully!", 
-      langCode
-    );
+  if (data.startsWith('set_lang_')) {
+    const langCode = data.replace('set_lang_', '');
     
-    Api.answerCallbackQuery({
-      callback_query_id: update.callback_query.id,
-      text: "Language updated!"
-    });
-    
-    Bot.sendMessage(successMsg);
-    
-    // Restart with new language
-    Bot.runCommand("/start");
+    try {
+      if (Libs.TranslateLib.setUserLang(user.id, langCode)) {
+        const successText = `Language changed to ${Libs.TranslateLib.languages[langCode]}! Use /start to see translation.`;
+        
+        Api.answerCallbackQuery({
+          callback_query_id: update.callback_query.id,
+          text: "Language updated!"
+        });
+        
+        Bot.sendMessage(successText);
+      }
+    } catch (error) {
+      Api.answerCallbackQuery({
+        callback_query_id: update.callback_query.id,
+        text: "Error changing language"
+      });
+    }
+  }
+  
+  else if (data === 'change_lang') {
+    Bot.runCommand("/setlang");
   }
 }
 ```
@@ -202,27 +238,59 @@ try {
   const translated = await Libs.TranslateLib.autoTranslate(userMessage);
   Bot.sendMessage(translated);
 } catch (error) {
-  // Fallback to English
-  Bot.sendMessage(userMessage);
+  Bot.sendMessage(`Translation failed: ${error.message}`);
+  Bot.sendMessage(userMessage); // Fallback to original
 }
 ```
 
 ### 3. Cache Common Phrases
 ```javascript
-// Store translated versions of common messages
-const commonMessages = {
-  welcome: await Libs.TranslateLib.autoTranslate("Welcome!"),
-  help: await Libs.TranslateLib.autoTranslate("Need help?"),
-  error: await Libs.TranslateLib.autoTranslate("Something went wrong")
-};
+// Pre-translate common messages to avoid repeated API calls
+let cachedMessages = {};
+
+async function initializeCachedMessages() {
+  try {
+    cachedMessages = {
+      welcome: await Libs.TranslateLib.autoTranslate("Welcome to our bot!"),
+      help: await Libs.TranslateLib.autoTranslate("How can I help you?"),
+      error: await Libs.TranslateLib.autoTranslate("Something went wrong"),
+      goodbye: await Libs.TranslateLib.autoTranslate("Thank you for using our bot!")
+    };
+  } catch (error) {
+    // Fallback to English if translation fails
+    cachedMessages = {
+      welcome: "Welcome to our bot!",
+      help: "How can I help you?",
+      error: "Something went wrong",
+      goodbye: "Thank you for using our bot!"
+    };
+  }
+}
+
+// Call this once when bot starts
+initializeCachedMessages();
+
+// Now use cached messages throughout your bot
+Bot.sendMessage(cachedMessages.welcome);
+Bot.sendMessage(cachedMessages.help);
 ```
 
-### 4. Respect API Limits
+### 4. Monitor Usage
 ```javascript
-// Don't translate very long texts
-if (text.length > 500) {
-  Bot.sendMessage("Text too long for translation");
-  return;
+// Check usage before translating
+const usage = Libs.TranslateLib.getUsageInfo();
+if (usage.wordsRemaining < 100) {
+  Bot.sendMessage(`Translation limit warning: ${usage.wordsRemaining} words remaining`);
+}
+
+// Show usage statistics to admin
+if (user.id === ADMIN_ID) {
+  const usage = Libs.TranslateLib.getUsageInfo();
+  Bot.sendMessage(`📊 Translation Usage Today:
+Words Used: ${usage.wordsUsed}
+Words Remaining: ${usage.wordsRemaining}
+Daily Limit: ${usage.limit}
+Reset: ${usage.resetDate}`);
 }
 ```
 
@@ -233,64 +301,136 @@ if (text.length > 500) {
 - **Best for**: General text translation
 - **Limits**: 1,000 words/day per IP
 
-### Fallback: LibreTranslate  
-- **URL**: `https://libretranslate.com/`
-- **Best for**: Backup when MyMemory is busy
-- **Limits**: Gentle rate limiting
+### Fallback 1: Google Translate  
+- **URL**: `https://translate.googleapis.com/`
+- **Best for**: Reliable fallback when MyMemory limit reached
+- **Limits**: Unofficial but stable
+
+### Fallback 2: Lingva Translate
+- **URL**: `https://lingva.ml/`
+- **Best for**: Open source backup option
+- **Limits**: Community-funded, no hard limits
 
 ## ⚠️ Error Handling
 
-The library automatically handles:
-- **API timeouts** (10-second timeout)
-- **Network failures** (automatic fallback)
-- **Invalid languages** (returns original text)
-- **Rate limits** (waits and retries)
+The library throws clear errors for:
+- **Invalid input** - Empty text, wrong data types
+- **API failures** - Network errors, service unavailable
+- **Rate limits** - Daily word limit exceeded (MyMemory only)
+- **Text too long** - Over 500 characters
+- **Unsupported languages** - Invalid language codes
 
 ```javascript
-// Always safe to use - returns original text on failure
-const safeTranslation = await Libs.TranslateLib.autoTranslate("Any text");
-```
-
-## 🎯 Common Use Cases
-
-### Multi-language Support
-```javascript
-// All bot messages auto-translated
-const responses = {
-  welcome: await Libs.TranslateLib.autoTranslate("Welcome to our service!"),
-  help: await Libs.TranslateLib.autoTranslate("How can I help you today?"),
-  goodbye: await Libs.TranslateLib.autoTranslate("Thank you for visiting!")
-};
-```
-
-### Dynamic Language Switching
-```javascript
-// User changes language in settings
-Libs.TranslateLib.setUserLang(user.id, 'ja');
-// All future messages will be in Japanese
-```
-
-### Content Localization
-```javascript
-// Localize dynamic content
-const userContent = {
-  news: await Libs.TranslateLib.autoTranslate("Breaking news update"),
-  promo: await Libs.TranslateLib.autoTranslate("Special offer available"),
-  update: await Libs.TranslateLib.autoTranslate("System maintenance notice")
-};
+try {
+  const translated = await Libs.TranslateLib.autoTranslate("Hello world");
+} catch (error) {
+  // Handle specific error types
+  if (error.message.includes('limit reached')) {
+    Bot.sendMessage("MyMemory translation limit reached, using fallback services");
+  } else if (error.message.includes('Text too long')) {
+    Bot.sendMessage("Please shorten your message for translation");
+  } else {
+    Bot.sendMessage("Translation failed: " + error.message);
+  }
+}
 ```
 
 ## 📈 Performance Tips
 
-1. **Batch translations** for multiple messages
-2. **Cache results** for repeated phrases  
-3. **Set reasonable timeouts** (already handled)
-4. **Monitor usage** to stay within free limits
-5. **Use for user-facing messages**, not internal logic
+1. **Cache Common Phrases** - Pre-translate frequent messages during bot initialization
+2. **Monitor Usage** - Check `getUsageInfo()` regularly and inform users
+3. **Batch Operations** - Group short translations when possible
+4. **Error Boundaries** - Always wrap translation calls in try-catch blocks
+5. **User Education** - Inform users about translation limits and capabilities
 
+## 🎯 Common Use Cases
 
-## 🤝 Note
-- This documentation is generated with AI assistance. You may find inconsistencies.
-- Need help? Contact [FlashComAssistant](https://t.me/FlashComAssistant) I will guide you through any issues!
+### Multi-language Support with Caching
+```javascript
+// Pre-translate all common responses
+let responseCache = {};
 
-Thank you for your understanding! 🙏
+async function initializeResponseCache() {
+  const phrases = {
+    welcome: "Welcome to our multi-language bot!",
+    help: "I can help you with translations and more.",
+    features: "Features: Translation, Language detection, User preferences",
+    contact: "Contact us for support in your preferred language"
+  };
+
+  for (const [key, englishText] of Object.entries(phrases)) {
+    responseCache[key] = {};
+    const languages = Libs.TranslateLib.getSupportedLanguages();
+    
+    for (const langCode of Object.keys(languages)) {
+      try {
+        responseCache[key][langCode] = await Libs.TranslateLib.autoTranslate(englishText, langCode);
+      } catch (error) {
+        responseCache[key][langCode] = englishText; // Fallback to English
+      }
+    }
+  }
+}
+
+// Get cached response for user's language
+function getResponse(userId, messageKey) {
+  const userLang = Libs.TranslateLib.getUserLang(userId);
+  return responseCache[messageKey]?.[userLang] || messageKey;
+}
+
+// Usage in commands
+Bot.sendMessage(getResponse(user.id, "welcome"));
+Bot.sendMessage(getResponse(user.id, "features"));
+```
+
+### Usage Monitoring Dashboard
+```javascript
+// Command: /usage
+const usage = Libs.TranslateLib.getUsageInfo();
+const message = `📊 Translation Usage:
+Words Used: ${usage.wordsUsed}
+Words Remaining: ${usage.wordsRemaining}
+Daily Limit: ${usage.limit}
+Reset Date: ${usage.resetDate}`;
+
+Bot.sendMessage(message);
+```
+
+## 🔒 Rate Limiting Protection
+
+The library includes built-in protection:
+- **Daily word tracking** - Prevents exceeding 1,000 words/day (MyMemory only)
+- **Automatic reset** - Daily counter reset at midnight
+- **Usage monitoring** - Real-time usage statistics
+- **Graceful degradation** - Falls back to other services when limits reached
+- **Multiple fallbacks** - Two additional free APIs ensure service continuity
+
+```javascript
+// Example of proper error handling with caching
+async function getTranslatedMessage(text, userId) {
+  const userLang = Libs.TranslateLib.getUserLang(userId);
+  const cacheKey = `${userLang}_${text}`;
+  
+  // Check cache first
+  if (cachedTranslations[cacheKey]) {
+    return cachedTranslations[cacheKey];
+  }
+  
+  // If not cached, translate with error handling
+  try {
+    const translated = await Libs.TranslateLib.autoTranslate(text, userLang);
+    cachedTranslations[cacheKey] = translated; // Cache the result
+    return translated;
+  } catch (error) {
+    if (error.message.includes('limit reached')) {
+      const usage = Libs.TranslateLib.getUsageInfo();
+      Bot.sendMessage(`MyMemory limit reached. ${usage.wordsRemaining} words remaining today. Using fallback services.`);
+    }
+    return text; // Return original text as fallback
+  }
+}
+
+// Usage
+const welcomeMessage = await getTranslatedMessage("Welcome to our service!", user.id);
+Bot.sendMessage(welcomeMessage);
+```
