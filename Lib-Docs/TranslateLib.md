@@ -143,14 +143,14 @@ Libs.TranslateLib.resetUsage();
 
 **Command: /start**
 ```javascript
-const userLang = Libs.TranslateLib.getUserLang(user.id);
-const currentLangName = Libs.TranslateLib.languages[userLang];
+const userLang = TranslateLib.getUserLang(user.id);
+const currentLangName = TranslateLib.languages[userLang];
 
-const welcomeText = `Welcome! Your current language is ${currentLangName}. Use the button below to change language.`;
+const welcomeText = `Hey man! your current lanf is ${currentLangName}. Use button below to change language. This iS is test`;
 
 let translatedText;
 try {
-  translatedText = await Libs.TranslateLib.autoTranslate(welcomeText);
+  translatedText = await TranslateLib.autoTranslate(welcomeText);
 } catch (error) {
   translatedText = welcomeText;
 }
@@ -158,7 +158,7 @@ try {
 Bot.sendMessage(translatedText, {
   reply_markup: {
     inline_keyboard: [
-      [{ text: "Change Language", callback_data: "change_lang" }]
+      [{ text: "Change Language", callback_data: "/setlang" }]
     ]
   }
 });
@@ -166,15 +166,15 @@ Bot.sendMessage(translatedText, {
 
 **Command: /setlang**
 ```javascript
-const languages = Libs.TranslateLib.getSupportedLanguages();
-const currentLang = Libs.TranslateLib.getUserLang(user.id);
+const languages = TranslateLib.getSupportedLanguages();
+const currentLang = TranslateLib.getUserLang(user.id);
 
 let keyboard = [];
 Object.keys(languages).forEach(langCode => {
   const isCurrent = langCode === currentLang;
   keyboard.push([{
     text: `${languages[langCode]} ${isCurrent ? '✅' : ''}`,
-    callback_data: `set_lang_${langCode}`
+    callback_data: `/setthelang ${langCode}`
   }]);
 });
 
@@ -187,37 +187,34 @@ Bot.sendMessage(message, {
 });
 ```
 
-**Command: ***
+**Command: /setthelang**
 ```javascript
-if (update.callback_query) {
-  const data = update.callback_query.data;
+if (params) {
+  const langCode = params.trim();
   
-  if (data.startsWith('set_lang_')) {
-    const langCode = data.replace('set_lang_', '');
-    
-    try {
-      if (Libs.TranslateLib.setUserLang(user.id, langCode)) {
-        const successText = `Language changed to ${Libs.TranslateLib.languages[langCode]}! Use /start to see translation.`;
-        
-        Api.answerCallbackQuery({
-          callback_query_id: update.callback_query.id,
-          text: "Language updated!"
-        });
-        
-        Bot.sendMessage(successText);
-      }
-    } catch (error) {
-      Api.answerCallbackQuery({
-        callback_query_id: update.callback_query.id,
-        text: "Error changing language"
-      });
-    }
+  try {
+    TranslateLib.setUserLang(user.id, langCode);
+    Bot.sendMessage(`Language changed to ${TranslateLib.languages[langCode]}! Use /welcome to see translatidon.`);
+  } catch (error) {
+    Bot.sendMessage(`Error: ${error.message}`);
   }
-  
-  else if (data === 'change_lang') {
-    Bot.runCommand("/setlang");
-  }
+  return;
 }
+const languages = TranslateLib.getSupportedLanguages();
+const currentLang = TranslateLib.getUserLang(user.id);
+
+let keyboard = [];
+Object.keys(languages).forEach(langCode => {
+  const isCurrent = langCode === currentLang;
+  keyboard.push([{
+    text: `${languages[langCode]} ${isCurrent ? '✅' : ''}`,
+    callback_data: `/setlang ${langCode}`
+  }]);
+});
+
+Bot.sendMessage(`Select language (Current: ${languages[currentLang]}):`, {
+  reply_markup: { inline_keyboard: keyboard }
+});
 ```
 
 ## 🛠️ Best Practices
