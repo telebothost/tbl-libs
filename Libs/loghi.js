@@ -3,7 +3,7 @@
 //Testing cross lib access 
 function hi() {
   let u = Libs.random.randomString(4)
-  return u
+  return u;
 }
 
 module.exports = {
