@@ -1,6 +1,4 @@
-/* ==========================================================
-   INTERNAL CACHES (FAST IN-MEMORY SESSION CACHE)
-========================================================== */
+
 const _cache = {
   res: {},        // cache for basic resources
   growth: {}      // cache for growth objects
@@ -8,9 +6,6 @@ const _cache = {
 
 const P = key => 'ResourcesLib_' + key;
 
-/* ==========================================================
-   COMMON UTILITIES
-========================================================== */
 const getProp = key => {
   if (_cache.res[key] !== undefined) return _cache.res[key];
   const val = Bot.getProperty(key);
@@ -36,9 +31,6 @@ const setGrowth = (key, value) => {
   Bot.setProperty(key, value, 'json');
 };
 
-/* ==========================================================
-   GROWTH RESOURCE (WITH CACHING)
-========================================================== */
 class GrowthResource {
   constructor(resource) {
     this.resource = resource;
@@ -436,9 +428,6 @@ class CommonResource {
   }
 }
 
-/* ==========================================================
-   FACTORY FUNCTIONS
-========================================================== */
 const getResourceFor = function(object, object_id, resName) {
   return new CommonResource(object, object_id, resName);
 };

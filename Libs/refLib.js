@@ -1,5 +1,4 @@
 const LIB_PREFIX = 'REFLIB_';
-
 let trackOptions = {};
 
 function emitEvent(eventName, params = {}) {

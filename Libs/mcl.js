@@ -2,7 +2,6 @@ async function check(userId, channels) {
   if (!Array.isArray(channels) || channels.length === 0) {
     throw new Error("[LibsError] InputError: Channels list must be a non-empty array");
   }
-
   if (channels.length > 10) {
     throw new Error("[LibsError] LimitError: Max 10 channels allowed");
   }

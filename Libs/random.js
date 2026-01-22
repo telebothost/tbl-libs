@@ -16,7 +16,6 @@ module.exports = {
     }
     return result;
   },
-
   randomString: (length = 10, options = {}) => {
     const { charset = 'alphanumeric', custom = '' } = options;
     const sets = {

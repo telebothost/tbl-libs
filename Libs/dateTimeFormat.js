@@ -1,4 +1,4 @@
-// dateTimeFormat Lib
+// dateTimeFormat Lib 
 
 const dateTimeFormat = {
   format: function(date, mask, utc, locale = 'en') {
