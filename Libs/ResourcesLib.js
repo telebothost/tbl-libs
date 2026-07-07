@@ -1,7 +1,7 @@
 
 const _cache = {
-  res: {},        // cache for basic resources
-  growth: {}      // cache for growth objects
+  res: {},
+  growth: {}
 };
 
 const P = key => 'ResourcesLib_' + key;
