@@ -1,8 +1,10 @@
-# 🔀 Random Library Documentation
+# random
 
-A comprehensive random value generation library with over 30 specialized methods for all your randomization needs. Because predictable is boring! 🎲
+Comprehensive random value generation — numbers, strings, collections, distributions, and more.
 
-## 🎯 Core Methods
+**File:** `libsv2/random.js` · **Access:** `Libs.random.*` · **Sync** — no `await`
+
+## Core methods
 
 ### 1. Basic Randomization
 ```javascript
@@ -163,7 +165,7 @@ Bot.sendMessage(`Your lucky numbers: ${numbers.join(', ')}`);
 const token = Libs.random.randomString(32, {
   charset: 'alphanumeric'
 });
-User.setProperty('reset_token', token);
+User.setProperty('reset_token', token);  // deprecated — use db.user.set in new bots
 ```
 
 ### 5. Random Test Data

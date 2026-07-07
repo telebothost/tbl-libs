@@ -1,173 +1,74 @@
+# refLib
 
-# refLib - Complete Referral Tracking Documentation
+Referral engine — build invite links, track who brought whom, maintain a leaderboard. Uses async `db.user` and `db.bot`. **All methods need `await`.** v1.0.0
 
-## Core Methods
+---
 
-### 1. Initialization
-```javascript
-// Basic initialization
-Libs.refLib.track({
-  onAttracted: (referrer) => {
-    Bot.sendMessage(
-      `🎉 New referral from ${referrer.first_name}!\n` +
-      `Their total referrals: ${Libs.refLib.getRefCount(referrer.id)}`
-    );
-  }
-});
-```
+## What is it?
 
-**Little bit advance**
+`Libs.refLib` handles the full referral lifecycle:
+
+1. User shares `https://t.me/YourBot?start=ref123456`
+2. New user opens link → `/start ref123456`
+3. `track()` parses `params`, attributes the referral, updates counts
+4. Leaderboard cache updates automatically
+
+| Feature | Implementation |
+| --- | --- |
+| Referral count | `db.user.incr` (atomic) |
+| Referral list | `db.user.push` (append-only) |
+| Leaderboard | Bounded top-50 cache on `db.bot` |
+| Profile cache | `db.bot` on `register()` |
+
+**Storage keys changed:** v1 used `REFLIB_*` (deprecated Bot/User properties). v1.0.0 uses `rfl:*` on async `db`. Data does not auto-migrate.
+
+---
+
+## Quick start
+
 ```js
-Libs.refLib.track({
-  onAttracted: (referrer) => {
-    // Notify both new user and referrer
-    Bot.sendMessage(`🎉 Welcome! You were referred by ${referrer.first_name}`);
-    
-    Api.sendMessage({
-      chat_id: referrer.id, // Send to referrer specifically
-      text: `🔥 ${user.first_name} just joined using your link!\n` +
-            `You now have ${Libs.refLib.getRefCount(referrer.id)} referrals!`
-    });
-  },
-  
-  onTouchOwnLink: () => {
-    Api.sendMessage({
-      chat_id: user.id,
-      text: "🔄 That's your own link! Share it with friends instead!"
-    });
-  },
-  
-  onAlreadyAttracted: () => {
-    const referrer = Libs.refLib.getAttractedBy();
-    if (referrer) {
-      Bot.sendMessage(
-        `You were referred by ${referrer.first_name}\n` +
-        `Their total referrals: ${Libs.refLib.getRefCount(referrer.id)}`
-      );
-    }
+let result = await Libs.refLib.track({
+  prefixes: ["ref"],
+  onJoin: async ({ referrer, count }) => {
+    Bot.sendMessage(chat.id, "Referred by " + referrer.first_name)
   }
-});
+})
+let url = await Libs.refLib.register()
 ```
 
-### 2. Generating Referral Links
-```javascript
-// Simple link
-const basicLink = Libs.refLib.getLink();
+---
 
-// Customized link
-const promoLink = Libs.refLib.getLink("DealsBot", "promo");
+## Core methods
 
-// QR Code example
-const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(promoLink)}`;
-```
+| Method | Returns | Description |
+| --- | --- | --- |
+| `track(handlers)` | `{ type, ... }` | Process update + fire events |
+| `configure({ prefixes })` | void | Default link prefixes |
+| `link({ bot, prefix })` | string | Build URL (no db) |
+| `register({ prefix, bot })` | string | Cache profile + return URL |
+| `count(userId?)` | number | Referral count |
+| `referrer()` | object\|null | Who referred current user |
+| `isReferred()` | boolean | Has a referrer |
+| `list(userId?, { limit })` | array | Referral list |
+| `leaderboard(top?)` | array | Top N with ranks |
+| `rank(userId?)` | number | Rank (0 = unranked) |
+| `stats(userId?)` | object | Dashboard bundle |
+| `addCount(userId, amount?)` | number | Manual increment |
 
-## Data Retrieval Methods
+### Legacy aliases
 
-### 1. Get Referral Information
-```javascript
-// Basic usage
-const myReferrals = Libs.refLib.getRefList();
+`getLink` → `register`, `getRefCount` → `count`, `getAttractedBy` → `referrer`, `getRefList` → `list`, `getTopList` → `leaderboardMap`, `onAttracted` → `onJoin`, `onTouchOwnLink` → `onSelf`, `onAlreadyAttracted` → `onRepeat`
 
-// With filtering
-const recentReferrals = myReferrals.filter(ref => {
-  const refDate = new Date(ref.date);
-  return refDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-});
-```
+---
 
-### 2. Leaderboard Access
-```javascript
-// Get raw leaderboard data
-const leaders = Libs.refLib.getTopList();
+## Storage keys
 
-// Formatted leaderboard
-const top10 = Object.entries(leaders)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10)
-  .map(([userId, count], index) => 
-    `${index + 1}. User ${userId}: ${count} referrals`
-  ).join("\n");
-
-Bot.sendMessage("🏆 Top Referrers:\n" + top10);
-```
-
-## Practical Examples
-
-### Basic Referral Program
-```javascript
-// Command: /mylink
-Bot.sendMessage(
-  `🔗 Your referral link:\n${Libs.refLib.getLink()}\n\n` +
-  `You have ${Libs.refLib.getRefCount()} referrals!`
-);
-```
-
-### Advanced Reward System
-```javascript
-// Track with rewards
-Libs.refLib.track({
-  onAttracted: (referrer) => {
-    const refCount = Libs.refLib.getRefCount(referrer.id);
-    
-    // Base reward
-    let reward = 10;
-    
-    // Bonus for milestones
-    if (refCount % 10 === 0) reward += 50;
-    
-    Bot.sendMessage(
-      `💰 ${user.first_name} joined via ${referrer.first_name}'s link!\n` +
-      `🎁 ${referrer.first_name} earned ${reward} points!`
-    );
-    
-    // Update user balance
-    const newBalance = Libs.wallet.add(referrer.id, reward);
-  }
-});
-```
-
-### Referral Analytics Dashboard
-```javascript
-// Command: /referralstats
-const stats = `
-📊 Your Referral Stats:
-
-👥 Total Referrals: ${Libs.refLib.getRefCount()}
-📅 Last 7 Days: ${recentReferrals.length}
-🏆 Your Rank: ${getUserRank(user.id)}
-
-🔗 Your Link: ${Libs.refLib.getLink()}
-`;
-
-function getUserRank(userId) {
-  const leaders = Libs.refLib.getTopList();
-  const sorted = Object.entries(leaders).sort((a, b) => b[1] - a[1]);
-  const rank = sorted.findIndex(([id]) => id == userId) + 1;
-  return rank > 0 ? rank : "Not ranked";
-}
-```
-
-## Complete Method Reference
-
-| Method | Parameters | Returns | Description |
-|--------|------------|---------|-------------|
-| `getLink` | `botName` (string, optional), `prefix` (string, optional) | string | Generates referral URL |
-| `track` | `options` (object with event handlers) | void | Initializes tracking |
-| `getRefList` | `userId` (number, optional) | Array[object] | Gets detailed referral list |
-| `getRefCount` | `userId` (number, optional) | number | Gets referral count |
-| `getTopList` | none | object | Gets all users' referral counts |
-| `getAttractedBy` | none | object/null | Gets referrer info |
-
-## Storage Structure Details
-
-### User Properties
-- `REFLIB_refList`: Array of referral objects
-- `REFLIB_refsCount`: Number of referrals
-- `REFLIB_attracted_by_user`: Referrer info
-- `REFLIB_old_user`: Boolean flag
-
-### Bot Properties
-- `REFLIB_topList`: Leaderboard data
-- `REFLIB_user{ID}`: User reference data
-- `REFLIB_refLinkPrefix`: Current link prefix
-
+| Key | Scope | Purpose |
+| --- | --- | --- |
+| `rfl:ct` | db.user | Count (incr) |
+| `rfl:by` | db.user | Referrer |
+| `rfl:ls` | db.user | List (push) |
+| `rfl:og` | db.user | Organic flag |
+| `rfl:top` | db.bot | Top 50 board |
+| `rfl:px` | db.bot | Link prefixes |
+| `rfl:lk:{id}` | db.bot | Profile cache |

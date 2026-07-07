@@ -1,4 +1,6 @@
 
+// DEPRECATED: use libsv2/ResourcesLibv2.js with db.user / db.bot instead of Bot properties
+
 const _cache = {
   res: {},
   growth: {}
@@ -463,3 +465,7 @@ module.exports = {
   anotherChatRes: anotherChatResource,
   growthFor: (resource) => resource.growth
 };
+
+// last updated: 07/07/26
+// _v: 1.0.0
+// type: synchronous
