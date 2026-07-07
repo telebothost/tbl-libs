@@ -1,8 +1,20 @@
 # TBL Libs — Documentation Index
 
-All libraries live in [`Libs/`](../Libs/). Version **1.0.0** (pre-release).
+Official library **source** lives in [`Libs/`](../Libs/). On the TBL platform they are used as **`Libs.<name>`** — there is no per-bot `Libs/` folder.
 
-TBL loads each file lazily on first access: `Libs.<filenameWithoutJs>.<method>()`. Names are **case-sensitive**.
+Version **1.0.0** (pre-release).
+
+---
+
+## Official libs vs custom libs
+
+| | Official (`Libs.xx`) | Custom (your bot) |
+| --- | --- | --- |
+| Access | `Libs.random.randomInt(1, 6)` | `let x = require("mylib")` |
+| Defined in | This repo → TBL platform | A command’s Logic field |
+| Example | `await Libs.refLib.count()` | `let lib = require("testlib"); await lib.run()` |
+
+To **test or develop** code from this repo (including `under_dev/`), create a command, paste the `.js` source, then `require("commandname")` from other commands. See [README](../README.md#custom-libs--requirecommandname).
 
 ---
 

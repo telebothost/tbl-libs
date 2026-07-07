@@ -1,33 +1,84 @@
 # TBL Libs
 
-Official helper libraries for [TBL (Tele Bot Language)](https://docs.telebothost.com) on TeleBotHost. Ready-to-use modules for economy systems, referrals, cooldowns, translations, channel gates, and common Telegram bot utilities.
+Official source repository for [TBL (Tele Bot Language)](https://docs.telebothost.com) helper libraries on TeleBotHost.
+
+This repo holds the **library code** and documentation. On the TBL platform, built-in libraries are exposed as **`Libs.<name>`** — you do not upload or manage a `Libs/` folder in your bot.
 
 Version **1.0.0** (pre-release).
 
 ---
 
-## Overview
+## How libraries work on TBL
 
-**Libs** are JavaScript modules loaded lazily by the TBL runtime. No imports or setup — access them directly in command Logic:
+There are two separate paths:
+
+| | Official libs (`Libs.xx`) | Your own custom libs |
+| --- | --- | --- |
+| **Source** | This repo → deployed by TBL | Your bot commands |
+| **Access** | `Libs.random`, `Libs.refLib`, … | `require("commandname")` |
+| **Who can add** | TBL platform (from this repo) | You, in your bot |
+| **Folder upload** | Not possible — no `Libs/` folder on bots | Not needed |
+
+### Official libs — `Libs.<name>`
+
+Built-in libraries load lazily on the platform. Use them directly in any command Logic:
 
 ```js
-Libs.<libraryName>.<method>()
+Libs.random.randomInt(1, 6)
+await Libs.refLib.count()
+Libs.tgutil.getNameFor(user)
 ```
 
 Names are **case-sensitive** (`Libs.tgutil` works; `Libs.TgUtil` does not).
 
-| Benefit | Detail |
-| --- | --- |
-| Zero configuration | Files in `Libs/` are auto-discovered |
-| Sync and async | Both patterns supported |
-| TBL globals available | `Bot`, `Api`, `user`, `chat`, `db`, `HTTP`, and more |
-| Bot-focused systems | Economy, referrals, cooldowns — not generic npm utilities |
+### Custom libs — `require("commandname")`
 
-For general-purpose packages (crypto, JWT, parsing), use TBL **Modules** instead.
+You **cannot** add files to a `Libs/` folder on TBL. To develop or test your own library:
+
+1. **Create a command** (e.g. `/testlib` or a hidden command named `testlib`).
+2. **Paste the library code** into that command’s Logic field — the full `.js` body ending with `module.exports = { ... }`.
+3. **Load it from another command** with `require()`:
+
+```js
+let mylib = require("testlib")
+
+let roll = mylib.randomInt(1, 6)
+await mylib.doSomething(user.id)
+```
+
+The string passed to `require()` is the **command name**, not a file path.
+
+#### Example — custom lib command (`testlib`)
+
+Logic field of command `testlib` (library only — no bot replies needed):
+
+```js
+const mylib = {
+  randomInt: function(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  },
+  greet: async function(chatId, name) {
+    await Bot.sendMessage(chatId, "Hello " + name)
+  }
+};
+
+module.exports = mylib;
+```
+
+#### Example — command that uses it (`/play`)
+
+```js
+let game = require("testlib")
+
+let roll = game.randomInt(1, 6)
+Bot.sendMessage(chat.id, "You rolled: " + roll)
+```
+
+Use this pattern to prototype libs from this repo (`under_dev/`, or your own code) before contributing them as official `Libs.*` entries.
 
 ---
 
-## Included libraries
+## Included official libraries
 
 | Library | Access | Type | Purpose |
 | --- | --- | --- | --- |
@@ -41,25 +92,23 @@ For general-purpose packages (crypto, JWT, parsing), use TBL **Modules** instead
 | `cooldown` | `Libs.cooldown` | Async | Per-user and global cooldown timers |
 | `ResourcesLib` | `Libs.ResourcesLib` | Sync (deprecated) | Legacy economy on `Bot` properties |
 
-Full documentation with examples: **[Lib-Docs/](Lib-Docs/INDEX.md)**
+**In development** (source in `under_dev/`, not yet on platform as `Libs.*`): [oxapay](under_dev/oxapay.md), [ton](under_dev/ton.md). Test via `require()` until promoted.
 
-Published docs mirror: [docs.telebothost.com/libs](https://docs.telebothost.com/libs/)
+Documentation: **[Lib-Docs/](Lib-Docs/INDEX.md)** · Published: [docs.telebothost.com/libs](https://docs.telebothost.com/libs/)
 
 ---
 
-## Quick start
+## Quick start (official `Libs`)
 
-### Sync library
+### Sync
 
 ```js
 let roll = Libs.random.randomInt(1, 6)
 let name = Libs.tgutil.getNameFor(user)
-let today = Libs.dateTimeFormat.getCurrentDate("isoDate")
-
-Bot.sendMessage(chat.id, name + " rolled " + roll + " on " + today)
+Bot.sendMessage(chat.id, name + " rolled " + roll)
 ```
 
-### Async library
+### Async
 
 ```js
 let gold = Libs.ResourcesLibv2.userRes("gold")
@@ -88,27 +137,23 @@ if (!(await Libs.mcl.quick(user.id, ["@MyChannel"]))) {
 | **Sync** | Instant computation, no I/O | `Libs.random.randomInt(1, 6)` |
 | **Async** | `db`, HTTP, Telegram API | `await Libs.refLib.count()` |
 
-Rules:
-
 - Always `await` async Lib methods.
-- TBL does **not** support `.then()` / `.catch()` chains in command Logic.
+- TBL does **not** support `.then()` / `.catch()` in command Logic.
 - Each Lib method has a **2-second** execution timeout.
-- `mcl.getBtn()` is sync; all other `mcl` methods are async.
+- Same rules apply to **custom** libs loaded via `require()` — `await` their async methods too.
 
 ---
 
 ## Storage (`db`)
 
-Modern libraries persist data through async `db.user` and `db.bot` — not deprecated `Bot.set` / `User.set`.
+Modern official libraries use async `db.user` and `db.bot` — not deprecated `Bot.set` / `User.set`.
 
 | Library | Storage |
 | --- | --- |
 | `ResourcesLibv2` | `db.bot` — keys `ResourcesLib_*` |
 | `refLib` | `db.user` + `db.bot` — keys `rfl:*` |
-| `translate` | `db.user` (`user_lang`) + `db.bot` (usage) |
+| `translate` | `db.user` + `db.bot` |
 | `cooldown` | `db.user` / `db.bot` — keys `cd:{name}` |
-
-Legacy `Libs.ResourcesLib` uses `Bot.getProperty` / `Bot.setProperty` and is deprecated. Migrate to `ResourcesLibv2`; storage keys are compatible but data does not auto-migrate between storage backends.
 
 ---
 
@@ -116,125 +161,63 @@ Legacy `Libs.ResourcesLib` uses `Bot.getProperty` / `Bot.setProperty` and is dep
 
 ```
 tbl-libs/
-├── Libs/                  # Library source files (.js)
-│   ├── random.js
-│   ├── dateTimeFormat.js
-│   ├── tgutil.js
-│   ├── mcl.js
-│   ├── ResourcesLibv2.js
-│   ├── refLib.js
-│   ├── translate.js
-│   ├── cooldown.js
-│   └── ResourcesLib.js    # deprecated
-└── Lib-Docs/              # In-repo documentation
-    ├── INDEX.md
-    └── ...
+├── Libs/           # Official lib source (maps to Libs.* on TBL when deployed)
+├── under_dev/      # Experimental source (test with require() first)
+└── Lib-Docs/       # Documentation for bot developers
 ```
 
-Each file maps to `Libs.<filenameWithoutExtension>` in TBL.
+Files in `Libs/` correspond to platform access names: `Libs/tgutil.js` → `Libs.tgutil`.
 
 ---
 
-## Writing your own library
+## Developing a new official lib
 
-Place a `.js` file in `Libs/` and export an object or class:
+### 1. Prototype with `require()`
+
+Copy code from `Libs/` or `under_dev/` into a command (e.g. `mylib`), then in a test command:
 
 ```js
-// Libs/mylib.js
-module.exports = {
-  add: function(a, b) {
-    return a + b;
-  },
-  fetchChat: async function(chatId) {
-    return await Api.getChat({ chat_id: chatId });
-  }
-};
+let lib = require("mylib")
+await lib.configure({ ... })
 ```
 
-Usage:
+### 2. Follow export rules
 
 ```js
-let sum = Libs.mylib.add(2, 3)
-let chatInfo = await Libs.mylib.fetchChat(chat.id)
-```
-
-### Export requirements
-
-```js
-// Correct
 module.exports = {
   myMethod: function() {},
   myAsync: async function() {}
 };
-
-// Incorrect — will not load
-exports = { myMethod: () => {} };
 ```
 
-### Common mistakes
+Do **not** use `exports = { ... }` alone. Export an object or class.
 
-**Forgetting `await` on async calls**
+### 3. Contribute to this repo
 
-```js
-// Wrong — data is a Promise
-let data = Libs.mcl.quick(user.id, ["@channel"])
+Open a PR with:
 
-// Correct
-let ok = await Libs.mcl.quick(user.id, ["@channel"])
-```
+- `.js` file under `Libs/` (or `under_dev/` for experimental)
+- Docs in `Lib-Docs/`
+- Notes on how you tested via `require()` on TBL
 
-**Using `.then()` syntax**
+Merged libs are deployed to the platform as **`Libs.<name>`** — not something you install per bot.
 
-```js
-// Wrong — not supported in TBL
-Api.sendMessage({ text: "Hi" }).then(...)
+### Best practices
 
-// Correct
-await Api.sendMessage({ text: "Hi" })
-```
-
-**Exporting a bare function instead of an object**
-
-```js
-// Wrong
-module.exports = function() {}
-
-// Correct
-module.exports = { run: function() {} }
-```
-
----
-
-## Best practices
-
-1. **Validate inputs** — check types and ranges before operating on user data.
-2. **Return from async methods** — always return the value callers need.
-3. **Use `db.incr` / `decr`** for counters and balances instead of read-modify-write.
-4. **Check `{ ok }`** on `db.set` / `db.del` responses; wrap `incr` / `push` in try/catch.
-5. **Escape user text** before embedding in formatted messages (`Libs.tgutil.escapeText`).
-6. **Keep methods focused** — one library per domain (economy, referrals, etc.).
-
----
-
-## Contributing
-
-Contributions are welcome. To add or improve a library:
-
-1. Add or edit a `.js` file under `Libs/`.
-2. Export via `module.exports = { ... }`.
-3. Use only TBL globals and JavaScript — no external npm dependencies in Lib files.
-4. Document the library in `Lib-Docs/` with method tables and usage examples.
-5. Test that `Libs.<name>.<method>()` loads and runs correctly (async methods with `await`).
-6. Open a pull request with a clear description of purpose and API changes.
+1. Validate inputs before operating on user data.
+2. Use `db.incr` / `decr` for counters and balances.
+3. Check `{ ok }` on `db.set` / `db.del`; try/catch on `incr` / `push`.
+4. Escape user text with `Libs.tgutil.escapeText` when using official libs alongside custom code.
+5. Store API keys in bot **ENV** — never hard-code secrets in Logic.
 
 ---
 
 ## Links
 
-- [Lib-Docs index](Lib-Docs/INDEX.md) — full in-repo documentation
+- [Lib-Docs index](Lib-Docs/INDEX.md)
 - [TBL documentation](https://docs.telebothost.com)
-- [Libs section (published)](https://docs.telebothost.com/libs/)
-- [db instance docs](https://docs.telebothost.com/db-instance/)
+- [Libs (published)](https://docs.telebothost.com/libs/)
+- [db instance](https://docs.telebothost.com/db-instance/)
 
 ---
 
