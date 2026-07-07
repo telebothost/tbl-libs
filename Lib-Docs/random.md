@@ -1,177 +1,227 @@
 # random
 
-Comprehensive random value generation — numbers, strings, collections, distributions, and more.
+Comprehensive random value generation — numbers, strings, collections, distributions, and test data.
 
-**File:** `libsv2/random.js` · **Access:** `Libs.random.*` · **Sync** — no `await`
+**File:** `Libs/random.js` · **Access:** `Libs.random.*` · **Sync** — no `await` · v1.0.0
 
-## Core methods
+---
 
-### 1. Basic Randomization
-```javascript
-// Random integer between min (inclusive) and max (inclusive)
-Libs.random.randomInt(1, 10); // e.g. 7
+## What problem does it solve?
 
-// Random float between min (inclusive) and max (exclusive)
-Libs.random.randomFloat(0, 1); // e.g. 0.57382
+Bots use randomness everywhere:
 
-// Random boolean with custom probability
-Libs.random.randomBoolean(0.3); // 30% chance of true
+- Dice rolls, loot drops, gacha pulls
+- Giveaway winners
+- OTP codes and session tokens
+- Fake test data for demos
+
+`random` wraps `Math.random()` with 30+ typed helpers. **Not cryptographically secure** — use `modules.crypto` for security-sensitive tokens.
+
+---
+
+## Quick start
+
+```js
+let roll = Libs.random.randomInt(1, 6)
+Bot.sendMessage(chat.id, "You rolled: " + roll)
+
+let prize = Libs.random.randomChoice(["gold", "silver", "bronze"])
+let pin = Libs.random.randomString(6, { charset: "numeric" })
 ```
 
-### 2. Collection Operations
-```javascript
-// Single random element from array
-Libs.random.randomChoice(['red', 'green', 'blue']); 
+---
 
-// Multiple unique random elements
-Libs.random.randomChoice([1,2,3,4,5], 3, true);
+## Numbers
 
-// Shuffle array (optionally in-place)
-Libs.random.randomShuffle([1,2,3,4,5]);
+| Method | Parameters | Returns | Description |
+| --- | --- | --- | --- |
+| `randomInt(min, max, inclusive?)` | min, max, inclusive=true | `number` | Integer in range |
+| `randomFloat(min, max, precision?)` | min, max, precision | `number` | Float in range |
+| `randomBoolean(probability?)` | 0–1, default 0.5 | `boolean` | Weighted true/false |
+| `randomRange(min, max, step?)` | min, max, step | `number` | Stepped range |
+| `randomUniqueInts(min, max, count, sorted?)` | range, count | `number[]` | Unique integers |
 
-// Weighted random selection
-const prizes = ['gold', 'silver', 'bronze'];
-const weights = [1, 3, 10];
-Libs.random.randomWeighted(prizes, weights);
+```js
+Libs.random.randomInt(1, 6)                    // dice: 1–6
+Libs.random.randomFloat(0, 1, 2)               // 0.47
+Libs.random.randomBoolean(0.3)                 // 30% chance true
+Libs.random.randomUniqueInts(1, 50, 6, true)   // lottery picks, sorted
 ```
 
-### 3. String Generation
-```javascript
-// Random alphanumeric string
-Libs.random.randomString(12); 
+---
 
-// Custom charset string
-Libs.random.randomString(8, {charset: 'numeric'});
+## Collections
 
-// Secure password with guaranteed character types
-Libs.random.randomPassword(16, {
-  upper: 3,
-  lower: 3,
-  numbers: 2,
-  special: 2
-});
+| Method | Parameters | Returns |
+| --- | --- | --- |
+| `randomChoice(arr, count?, unique?)` | array, count=1, unique=false | element or array |
+| `randomShuffle(arr, inPlace?)` | array, mutate? | shuffled array |
+| `randomWeighted(items, weights, normalize?)` | items, weights | one item |
+| `randomSample(arr, n, weights?)` | array, n, weights? | sample array |
+| `randomFromObject(obj, deep?)` | object, deep=false | random value |
+| `randomWeightedValue(weights)` | weight object | key by weight |
+
+```js
+let hand = Libs.random.randomChoice(["A","K","Q","J","10"], 5, true)
+let winner = Libs.random.randomWeighted(["A","B","C"], [1, 3, 10])
+let shuffled = Libs.random.randomShuffle([1,2,3,4,5])
 ```
 
-### 4. Specialized Generators
-```javascript
-// Random UUID v4
-Libs.random.randomUuid(); 
+---
 
-// Random geographic coordinates
-Libs.random.randomGeoPoint(); 
+## Strings and tokens
 
-// Random IP address
-Libs.random.randomIp(6); // IPv6
+| Method | Parameters | Returns |
+| --- | --- | --- |
+| `randomString(length?, options?)` | length=10, charset opts | `string` |
+| `randomPassword(length?, options?)` | length, char counts | `string` |
+| `randomToken(length?)` | hex length=32 | `string` |
+| `randomUuid(version?)` | 4 or 1 | `string` |
 
-// Random date in range
-const start = new Date(2020, 0, 1);
-const end = new Date();
-Libs.random.randomDate(start, end);
+### `charset` for `randomString`
+
+| Value | Characters |
+| --- | --- |
+| `alphanumeric` | A–Z, a–z, 0–9 (default) |
+| `alpha` | Letters only |
+| `numeric` | 0–9 |
+| `hex` | 0–9, a–f |
+| `symbols` | `!@#$%^&*()_+-=[]{}|;:,.<>?` |
+| custom | `{ custom: "ABC123" }` |
+
+```js
+Libs.random.randomString(6, { charset: "numeric" })     // "482910"
+Libs.random.randomToken(32)                              // hex token
+Libs.random.randomUuid()                                 // v4 UUID
+Libs.random.randomPassword(16, { upper: 3, lower: 3, numbers: 4, special: 2 })
 ```
 
-## 📊 Statistical Distributions
+---
 
-```javascript
-// Normal distribution (Gaussian)
-Libs.random.randomNormal(0, 1); 
+## Colors
 
-// Exponential distribution
-Libs.random.randomExponential(0.5);
+`randomColor(type?, alpha?)` — types: `hex` (default), `rgb`, `hsl`.
 
-// Binomial distribution
-Libs.random.randomBinomial(10, 0.7);
-
-// Random walk sequence
-Libs.random.randomWalk(100);
+```js
+Libs.random.randomColor()              // "#a3f5c2"
+Libs.random.randomColor("rgb")         // "rgb(120, 45, 200)"
+Libs.random.randomColor("rgb", true)   // "rgba(120, 45, 200, 0.73)"
 ```
 
-## 🎨 Creative Generators
+---
 
-```javascript
-// Random color in different formats
-Libs.random.randomColor('rgb', true); // RGBA
+## Dates
 
-// Random matrix
-Libs.random.randomMatrix(3, 3); // 3x3 matrix
+`randomDate(startDate, endDate, format?)` — returns `Date`, or locale string if `format` provided.
 
-// Random lorem ipsum text
-Libs.random.randomLorem(15); // 15 words
-
-// Random email address
-Libs.random.randomEmail(['company.com', 'test.org']);
+```js
+let day = Libs.random.randomDate(new Date(2024, 0, 1), new Date())
 ```
 
-## 🔢 Advanced Number Generation
+---
 
-```javascript
-// Multiple unique random integers
-Libs.random.randomUniqueInts(1, 100, 5, true); // sorted
+## Network and geo
 
-// Number in range with step
-Libs.random.randomRange(0, 100, 5); // e.g. 0, 5, 10...
+| Method | Returns |
+| --- | --- |
+| `randomIp(version?)` | IPv4 or IPv6 string |
+| `randomGeoPoint(latRange?, lonRange?, precision?)` | `{ latitude, longitude }` |
+| `randomEmail(domains?)` | email string |
+| `randomPhone(format?)` | phone string |
+| `randomName(gender?)` | `"male"`, `"female"`, or `"any"` |
+| `randomAddress()` | `{ street, city, state, zipCode }` |
 
-// Random sequence
-Libs.random.randomSequence(10, Libs.random.randomInt, [1, 100]);
+```js
+Libs.random.randomIp(4)       // "192.168.1.42"
+Libs.random.randomEmail(["company.com"])
+Libs.random.randomName("female")
 ```
 
-## 🏆 Method Reference Cheat Sheet
+---
 
-| Method | Description | Example |
-|--------|-------------|---------|
-| `randomInt(min, max)` | Random integer in range | `randomInt(1, 6)` → 4 |
-| `randomFloat(min, max)` | Random float in range | `randomFloat(0, 1)` → 0.723 |
-| `randomChoice(arr)` | Random array element | `randomChoice(['a','b','c'])` → 'b' |
-| `randomString(length)` | Random string | `randomString(8)` → "xY7fq2P9" |
-| `randomBoolean()` | Random true/false | `randomBoolean()` → true |
-| `randomShuffle(arr)` | Shuffled array | `randomShuffle([1,2,3])` → [2,1,3] |
-| `randomWeighted(items, weights)` | Weighted selection | `randomWeighted(['a','b'], [1,9])` → 'b' |
-| `randomUuid()` | Random UUID | `randomUuid()` → "f47ac..." |
-| `randomColor(type)` | Random color | `randomColor('hex')` → "#a3f5c2" |
-| `randomPassword()` | Strong password | `randomPassword(12)` → "Xk8@qL3#pY9!" |
-| `randomNormal(mean, stdDev)` | Normal distribution | `randomNormal(0, 1)` → -0.342 |
-| `randomDate(start, end)` | Random date in range | `randomDate(start, end)` → Date |
-| `randomIp(version)` | Random IP address | `randomIp(4)` → "192.168.1.1" |
+## Statistical distributions
 
-## 🚀 Practical Examples
+| Method | Description |
+| --- | --- |
+| `randomNormal(mean?, stdDev?, truncate?)` | Gaussian |
+| `randomExponential(lambda?)` | Exponential |
+| `randomBinomial(n, p)` | Binomial count |
+| `randomNoise(length, amplitude?, frequency?)` | Sine noise array |
 
-### 1. Dice Roll Simulation
-```javascript
-const roll = Libs.random.randomInt(1, 6);
-Bot.sendMessage(`🎲 You rolled a ${roll}!`);
+```js
+let sample = Libs.random.randomNormal(0, 1, [-3, 3])
+let failures = Libs.random.randomBinomial(10, 0.3)
 ```
 
-### 2. Random User Generator
-```javascript
-const user = {
-  id: Libs.random.randomUuid(),
-  name: Libs.random.randomChoice(['Alice','Bob','Charlie']),
-  age: Libs.random.randomInt(18, 65),
-  email: Libs.random.randomEmail(),
-  joined: Libs.random.randomDate(
-    new Date(2020, 0, 1), 
-    new Date()
-  )
-};
+---
+
+## Matrices and sequences
+
+| Method | Returns |
+| --- | --- |
+| `randomMatrix(rows, cols, generator?, args?)` | 2D array |
+| `randomSequence(length, generator?, args?)` | array |
+| `randomPermutation(n)` | shuffled index array |
+| `randomLorem(words?)` | lorem ipsum string |
+| `randomCreditCard(prefix?)` | valid Luhn card number |
+| `randomBytes(length)` | byte array |
+
+```js
+let grid = Libs.random.randomMatrix(3, 3, Libs.random.randomInt, [1, 9])
+let digits = Libs.random.randomSequence(6, Libs.random.randomInt, [0, 9])
 ```
 
-### 3. Lottery Number Generator
-```javascript
-const numbers = Libs.random.randomUniqueInts(1, 50, 6, true);
-Bot.sendMessage(`Your lucky numbers: ${numbers.join(', ')}`);
+---
+
+## Full example — dice game
+
+```js
+// /roll command
+let d1 = Libs.random.randomInt(1, 6)
+let d2 = Libs.random.randomInt(1, 6)
+let total = d1 + d2
+
+let msg = "You rolled " + d1 + " + " + d2 + " = " + total
+
+if (d1 === d2) {
+  msg += "\nDoubles! Bonus roll: " + Libs.random.randomInt(1, 6)
+}
+
+Bot.sendMessage(chat.id, msg)
 ```
 
-### 4. Password Reset Token
-```javascript
-const token = Libs.random.randomString(32, {
-  charset: 'alphanumeric'
-});
-User.setProperty('reset_token', token);  // deprecated — use db.user.set in new bots
+---
+
+## Full example — weighted loot table
+
+```js
+let loot = Libs.random.randomWeighted(
+  ["common", "rare", "epic", "legendary"],
+  [70, 20, 8, 2]
+)
+
+let amounts = { common: 10, rare: 50, epic: 200, legendary: 1000 }
+let gold = amounts[loot]
+
+await Libs.ResourcesLibv2.userRes("gold").add(gold)
+Bot.sendMessage(chat.id, "You found " + loot + " loot: +" + gold + " gold!")
 ```
 
-### 5. Random Test Data
-```javascript
-const testData = Libs.random.randomMatrix(5, 3, Libs.random.randomFloat, [0, 100]);
-// Generates 5x3 matrix of random floats
+---
+
+## Full example — giveaway winner
+
+```js
+let entrants = [111, 222, 333, 444, 555]  // user IDs
+let winner = Libs.random.randomChoice(entrants)
+
+Bot.sendMessage(chat.id, "Winner: user " + winner + "!")
 ```
 
-This library provides endless possibilities for adding randomness to your applications - from games and simulations to security and testing! 🎰
+---
+
+## Notes
+
+- Uses `Math.random()` — fine for games; **not** for passwords/secrets at scale.
+- Methods capped at Libs **2-second timeout** (only matters for heavy custom generators).
+- `randomPassword` enforces minimum character class counts then shuffles.

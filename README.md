@@ -1,81 +1,152 @@
-# 📚 TBL Libs Documentation
+# TBL Libs
 
-A comprehensive guide to building, using, and debugging custom JavaScript libraries in the **TBL (Tele Bot Language)** system. TBL supports both synchronous and asynchronous libraries and is designed to make Telegram bot scripting powerful, modular, and safe.
+Official helper libraries for [TBL (Tele Bot Language)](https://docs.telebothost.com) on TeleBotHost. Ready-to-use modules for economy systems, referrals, cooldowns, translations, channel gates, and common Telegram bot utilities.
 
----
-
-## 🚀 What is TBL?
-
-**TBL** is a flexible scripting framework used for creating Telegram bots. It allows defining **custom libraries** (`Libs`) which are isolated modules that can include variables, methods, and logic using standard JavaScript as well as TBL's custom scripting support.
+Version **1.0.0** (pre-release).
 
 ---
 
-## ⚙️ Key Features
+## Overview
 
-- ✅ **Supports both sync & async libraries**
-- ✅ Full access to Telegram Bot API via `Api`
-- ✅ Errors and timeouts handled safely
-- ✅ Up to 10-second execution timeout for safety
-- ✅ Built-in support for TBL Language: `User`, `Bot`, `chat`, etc.
-
----
-
-## 📁 File Structure
-
-Each library must be placed in the `/Libs` directory as a `.js` file:
-
-```
-/Libs
- ├── channelChecker.js
- ├── mathUtils.js
- └── welcomeLib.js
-```
-
----
-
-## ✅ Correct Export Format
+**Libs** are JavaScript modules loaded lazily by the TBL runtime. No imports or setup — access them directly in command Logic:
 
 ```js
-// ✅ Correct
-module.exports = {
-  method1: function() {},
-  method2: async function() {}
-};
+Libs.<libraryName>.<method>()
+```
 
-// ❌ Incorrect - won't be loaded
-exports = { method1: () => {} };
+Names are **case-sensitive** (`Libs.tgutil` works; `Libs.TgUtil` does not).
+
+| Benefit | Detail |
+| --- | --- |
+| Zero configuration | Files in `Libs/` are auto-discovered |
+| Sync and async | Both patterns supported |
+| TBL globals available | `Bot`, `Api`, `user`, `chat`, `db`, `HTTP`, and more |
+| Bot-focused systems | Economy, referrals, cooldowns — not generic npm utilities |
+
+For general-purpose packages (crypto, JWT, parsing), use TBL **Modules** instead.
+
+---
+
+## Included libraries
+
+| Library | Access | Type | Purpose |
+| --- | --- | --- | --- |
+| `random` | `Libs.random` | Sync | Numbers, strings, distributions, test data |
+| `dateTimeFormat` | `Libs.dateTimeFormat` | Sync | Formatting, arithmetic, locales, relative time |
+| `tgutil` | `Libs.tgutil` | Sync | Names, mentions, escaping, WebApp helpers |
+| `mcl` | `Libs.mcl` | Async | Channel membership checks and join buttons |
+| `ResourcesLibv2` | `Libs.ResourcesLibv2` | Async | Economy, inventories, growth, transfers |
+| `refLib` | `Libs.refLib` | Async | Referral links, tracking, leaderboard |
+| `translate` | `Libs.translate` | Async | Multi-language translation with provider fallback |
+| `cooldown` | `Libs.cooldown` | Async | Per-user and global cooldown timers |
+| `ResourcesLib` | `Libs.ResourcesLib` | Sync (deprecated) | Legacy economy on `Bot` properties |
+
+Full documentation with examples: **[Lib-Docs/](Lib-Docs/INDEX.md)**
+
+Published docs mirror: [docs.telebothost.com/libs](https://docs.telebothost.com/libs/)
+
+---
+
+## Quick start
+
+### Sync library
+
+```js
+let roll = Libs.random.randomInt(1, 6)
+let name = Libs.tgutil.getNameFor(user)
+let today = Libs.dateTimeFormat.getCurrentDate("isoDate")
+
+Bot.sendMessage(chat.id, name + " rolled " + roll + " on " + today)
+```
+
+### Async library
+
+```js
+let gold = Libs.ResourcesLibv2.userRes("gold")
+await gold.add(50)
+Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+```
+
+### Channel gate
+
+```js
+if (!(await Libs.mcl.quick(user.id, ["@MyChannel"]))) {
+  return Api.sendMessage({
+    chat_id: chat.id,
+    text: "Join our channel to continue.",
+    reply_markup: { inline_keyboard: Libs.mcl.getBtn(["@MyChannel"]) }
+  })
+}
 ```
 
 ---
 
-## 🧠 TBL Language Support
+## Sync vs async
 
-TBL supports its own runtime language and built-in globals:
+| Pattern | When to use | Example |
+| --- | --- | --- |
+| **Sync** | Instant computation, no I/O | `Libs.random.randomInt(1, 6)` |
+| **Async** | `db`, HTTP, Telegram API | `await Libs.refLib.count()` |
 
-| Keyword      | Meaning                                 |
-|--------------|------------------------------------------|
-| `user`       | Current user object                      |
-| `chat`       | Current chat object                      |
-| `Bot`        | Bot methods like `Bot.sendMessage(...)`  |
-| `Api`        | Raw Telegram Bot API methods             |
-| `User`, `Global`, `bot` | Shortcuts to runtime contexts |
-> And more supported!
-> You can use TBL variables, methods, and native functions within your libs.
+Rules:
+
+- Always `await` async Lib methods.
+- TBL does **not** support `.then()` / `.catch()` chains in command Logic.
+- Each Lib method has a **2-second** execution timeout.
+- `mcl.getBtn()` is sync; all other `mcl` methods are async.
 
 ---
 
-## 🔁 Synchronous vs Asynchronous
+## Storage (`db`)
 
-You can define both sync and async methods in your library:
+Modern libraries persist data through async `db.user` and `db.bot` — not deprecated `Bot.set` / `User.set`.
+
+| Library | Storage |
+| --- | --- |
+| `ResourcesLibv2` | `db.bot` — keys `ResourcesLib_*` |
+| `refLib` | `db.user` + `db.bot` — keys `rfl:*` |
+| `translate` | `db.user` (`user_lang`) + `db.bot` (usage) |
+| `cooldown` | `db.user` / `db.bot` — keys `cd:{name}` |
+
+Legacy `Libs.ResourcesLib` uses `Bot.getProperty` / `Bot.setProperty` and is deprecated. Migrate to `ResourcesLibv2`; storage keys are compatible but data does not auto-migrate between storage backends.
+
+---
+
+## Repository structure
+
+```
+tbl-libs/
+├── Libs/                  # Library source files (.js)
+│   ├── random.js
+│   ├── dateTimeFormat.js
+│   ├── tgutil.js
+│   ├── mcl.js
+│   ├── ResourcesLibv2.js
+│   ├── refLib.js
+│   ├── translate.js
+│   ├── cooldown.js
+│   └── ResourcesLib.js    # deprecated
+└── Lib-Docs/              # In-repo documentation
+    ├── INDEX.md
+    └── ...
+```
+
+Each file maps to `Libs.<filenameWithoutExtension>` in TBL.
+
+---
+
+## Writing your own library
+
+Place a `.js` file in `Libs/` and export an object or class:
 
 ```js
 // Libs/mylib.js
 module.exports = {
-  syncMethod: function(a, b) {
+  add: function(a, b) {
     return a + b;
   },
-  asyncMethod: async function(userId) {
-    return await Api.getChat({ chat_id: userId });
+  fetchChat: async function(chatId) {
+    return await Api.getChat({ chat_id: chatId });
   }
 };
 ```
@@ -83,228 +154,90 @@ module.exports = {
 Usage:
 
 ```js
-const sum = Libs.mylib.syncMethod(1, 2);
-const chatInfo = await Libs.mylib.asyncMethod(user.id);
+let sum = Libs.mylib.add(2, 3)
+let chatInfo = await Libs.mylib.fetchChat(chat.id)
+```
+
+### Export requirements
+
+```js
+// Correct
+module.exports = {
+  myMethod: function() {},
+  myAsync: async function() {}
+};
+
+// Incorrect — will not load
+exports = { myMethod: () => {} };
+```
+
+### Common mistakes
+
+**Forgetting `await` on async calls**
+
+```js
+// Wrong — data is a Promise
+let data = Libs.mcl.quick(user.id, ["@channel"])
+
+// Correct
+let ok = await Libs.mcl.quick(user.id, ["@channel"])
+```
+
+**Using `.then()` syntax**
+
+```js
+// Wrong — not supported in TBL
+Api.sendMessage({ text: "Hi" }).then(...)
+
+// Correct
+await Api.sendMessage({ text: "Hi" })
+```
+
+**Exporting a bare function instead of an object**
+
+```js
+// Wrong
+module.exports = function() {}
+
+// Correct
+module.exports = { run: function() {} }
 ```
 
 ---
 
-## ❌ Common Mistakes & Pitfalls
+## Best practices
 
-### 1. ❌ Forgetting `await`
-```js
-// ❌ WRONG
-let data = Api.getChat({ chat_id: user.id });
-
-// ✅ RIGHT
-let data = await Api.getChat({ chat_id: user.id });
-```
-
-### 2. ❌ Using `.then` syntax
-```js
-// ❌ WRONG
-Api.sendMessage({ text: "Hi" }).then(...);
-
-// ✅ RIGHT
-await Api.sendMessage({ text: "Hi" });
-```
-
-### 3. ❌ Wrong export type
-```js
-// ❌ WRONG
-function myFunc() {}
-module.exports = myFunc;
-
-// ✅ RIGHT
-module.exports = {
-  myFunc: function() {}
-};
-```
-
-### 4. ❌ Accessing undefined context
-```js
-// ❌ WRONG
-return user.first_name; // might not exist
-
-// ✅ RIGHT
-module.exports = {
-  getName: function(user) {
-    return user?.first_name || "Guest";
-  }
-};
-```
-
-### 5. ❌ Not returning from async functions
-```js
-// ❌ WRONG
-async function send() {
-  let msg = await Api.sendMessage({ chat_id: 123, text: "hi" });
-  // forgot to return
-}
-
-// ✅ RIGHT
-async function send() {
-  return await Api.sendMessage({ chat_id: 123, text: "hi" });
-}
-```
+1. **Validate inputs** — check types and ranges before operating on user data.
+2. **Return from async methods** — always return the value callers need.
+3. **Use `db.incr` / `decr`** for counters and balances instead of read-modify-write.
+4. **Check `{ ok }`** on `db.set` / `db.del` responses; wrap `incr` / `push` in try/catch.
+5. **Escape user text** before embedding in formatted messages (`Libs.tgutil.escapeText`).
+6. **Keep methods focused** — one library per domain (economy, referrals, etc.).
 
 ---
 
-## 📌 Best Practices
+## Contributing
 
-### 1. Input Validation
-```js
-module.exports = {
-  greet: function(name) {
-    if (typeof name !== 'string') return "Invalid name";
-    return "Hello, " + name;
-  }
-};
-```
+Contributions are welcome. To add or improve a library:
 
-### 2. Error Handling
-```js
-module.exports = {
-  safeSend: async function(chatId, text) {
-    try {
-      await Api.sendMessage({ chat_id: chatId, text });
-    } catch (e) {
-      Bot.sendMessage("Failed to send");
-    }
-  }
-};
-```
-
-### 3. Logging & Debugging
-```js
-module.exports = {
-  debugLog: function(data) {
-    Bot.inspect(data);
-  }
-};
-```
+1. Add or edit a `.js` file under `Libs/`.
+2. Export via `module.exports = { ... }`.
+3. Use only TBL globals and JavaScript — no external npm dependencies in Lib files.
+4. Document the library in `Lib-Docs/` with method tables and usage examples.
+5. Test that `Libs.<name>.<method>()` loads and runs correctly (async methods with `await`).
+6. Open a pull request with a clear description of purpose and API changes.
 
 ---
 
-## 🧪 Example Libraries
+## Links
 
-### Sync Example
-
-```js
-// Libs/math.js
-module.exports = {
-  add: (a, b) => a + b,
-  isEven: (n) => n % 2 === 0
-};
-```
-
-Usage:
-```js
-let val = Libs.math.add(5, 10);  // 15
-```
-
-### Async Example
-
-```js
-// Libs/greet.js
-module.exports = {
-  welcome: async function(userId) {
-    return await Api.sendMessage({
-      chat_id: userId,
-      text: "👋 Welcome!"
-    });
-  }
-};
-```
-
-Usage:
-```js
-await Libs.greet.welcome(user.id);
-```
+- [Lib-Docs index](Lib-Docs/INDEX.md) — full in-repo documentation
+- [TBL documentation](https://docs.telebothost.com)
+- [Libs section (published)](https://docs.telebothost.com/libs/)
+- [db instance docs](https://docs.telebothost.com/db-instance/)
 
 ---
 
-## 🧷 Quick Access Reference
+## License
 
-| Type        | Supported? | Notes                          |
-|-------------|------------|---------------------------------|
-| Async libs  | ✅         | Use `await Libs.name.method()` |
-| Sync libs   | ✅         | Direct call: `Libs.name.fn()`  |
-| Return Data | ✅         | Always return from async       |
-| Promise     | ✅        | only on `async` function           |
-| `then`/`catch` | ❌     | Not supported in TBL           |
-
----
-
-## 🧩 Example Lib: Channel Membership Checker
-
-```js
-module.exports = {
-  check: async function(userId, channels) {
-    // ...check logic
-  },
-  quick: async function(userId, channels) {
-    const res = await this.check(userId, channels);
-    return res.all_joined;
-  },
-  getBtn: function(channels) {
-    return channels.map(c => [{ text: `Join ${c}`, url: `https://t.me/${c.replace("@", "")}` }]);
-  }
-};
-```
-
-Use like:
-
-```js
-await Libs.channel.check(user.id, ['@ch1', '@ch2']);
-```
-
----
-
-## 🏁 Conclusion
-
-TBL Libs are powerful, modular, and safe. Whether you're building a sync math helper or an async membership checker, follow the rules and format strictly.
-
-If you hit errors:
-- ✅ Check your `module.exports`
-- ✅ Use `await` properly
-- ✅ Avoid chaining with `.then`
-
-Happy bot building! 🤖
-
----
-
-### 🤝 Contribute to TBL Libs
-
-We welcome contributions to the **TBL Libs** collection!
-
-If you’ve built a useful utility or helper library for Telegram bot development using TBL (Telegram Bot Language), you can share it with the community.
-
-#### 📌 How to Contribute
-
-1. **Create Your Library**
-   - Write your lib in a new `.js` file under `/Libs/`
-   - Export your functions properly via `module.exports = { ... }`
-
-2. **Follow the Rules**
-   - One file per library
-   - No external dependencies—use only TBL APIs and JavaScript
-   - Name the file and methods clearly
-   - Add brief inline comments if needed
-
-3. **Test Before Push**
-   - Ensure your lib loads and works using `Libs.myLib.method()`
-   - Async methods must be used with `await`
-
-4. **Submit a Pull Request**
-   - Fork the repository
-   - Add your `.js` file under `/Libs`
-   - Submit a **Pull Request** with:
-     - A clear description
-     - Library purpose
-     - Optional usage notes
-
----
-
-✨ Let’s grow the TBL ecosystem together!  
-Submit your PRs and help other developers build faster.
+See repository license file. Libraries are provided for use with TeleBotHost TBL bots.

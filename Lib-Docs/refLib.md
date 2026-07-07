@@ -1,74 +1,271 @@
 # refLib
 
-Referral engine — build invite links, track who brought whom, maintain a leaderboard. Uses async `db.user` and `db.bot`. **All methods need `await`.** v1.0.0
+Full referral system — invite links, attribution on `/start`, referral lists, and a bounded top-50 leaderboard.
+
+**File:** `Libs/refLib.js` · **Access:** `Libs.refLib.*` · **Async** — always `await` · v1.0.0
 
 ---
 
-## What is it?
+## What problem does it solve?
 
-`Libs.refLib` handles the full referral lifecycle:
+You want users to invite friends and get credit when someone joins via their link:
 
-1. User shares `https://t.me/YourBot?start=ref123456`
-2. New user opens link → `/start ref123456`
-3. `track()` parses `params`, attributes the referral, updates counts
-4. Leaderboard cache updates automatically
+```
+https://t.me/YourBot?start=ref123456789
+```
 
-| Feature | Implementation |
+When a new user opens that link, Telegram sends `/start ref123456789`. `refLib.track()` parses `params`, attributes the referral atomically, and fires your callbacks.
+
+| Feature | How |
 | --- | --- |
-| Referral count | `db.user.incr` (atomic) |
-| Referral list | `db.user.push` (append-only) |
-| Leaderboard | Bounded top-50 cache on `db.bot` |
-| Profile cache | `db.bot` on `register()` |
+| Referral count | `db.user.incr` — atomic, no race conditions |
+| Who referred whom | `db.user.set` on referrer profile |
+| Referral history | `db.user.push` — append-only list |
+| Leaderboard | Bounded top-50 cache on `db.bot` — no full-bot scan |
+| Link prefixes | Configurable (`ref`, `vip`, etc.) |
 
-**Storage keys changed:** v1 used `REFLIB_*` (deprecated Bot/User properties). v1.0.0 uses `rfl:*` on async `db`. Data does not auto-migrate.
+---
+
+## Storage keys (`rfl:*`)
+
+| Key | Scope | Purpose |
+| --- | --- | --- |
+| `rfl:ct` | `db.user` | Referral count (use `incr`) |
+| `rfl:by` | `db.user` | Who referred this user |
+| `rfl:ls` | `db.user` | Referral list (use `push`) |
+| `rfl:og` | `db.user` | Organic arrival flag (no ref code) |
+| `rfl:top` | `db.bot` | Top 50 leaderboard `[{ i, n }]` |
+| `rfl:px` | `db.bot` | Registered link prefixes |
+| `rfl:lk:{userId}` | `db.bot` | Cached referrer profile snapshot |
+| `rfl:g:{userId}` | `db.bot` | Global count mirror for leaderboard |
+
+**Migration note:** Old `REFLIB_*` keys on deprecated `Bot`/`User` properties do **not** auto-migrate to `rfl:*`.
+
+---
+
+## Referral flow
+
+```
+User A runs /mylink  →  register() caches profile + returns link
+User B opens link  →  /start ref{A's id}
+User B's /start    →  track() attributes B to A
+                   →  A's count incr, B added to A's list
+                   →  leaderboard updated if A qualifies
+```
+
+### `track()` return types
+
+| `type` | Meaning |
+| --- | --- |
+| `join` | New referral attributed |
+| `self` | User opened their own link |
+| `repeat` | User already had a referrer or is organic |
+| `organic` | No ref code or not a `/start` payload |
 
 ---
 
 ## Quick start
 
+**`/start` command** — always call `track()` first:
+
 ```js
 let result = await Libs.refLib.track({
-  prefixes: ["ref"],
+  prefixes: ["ref", "vip"],
   onJoin: async ({ referrer, count }) => {
-    Bot.sendMessage(chat.id, "Referred by " + referrer.first_name)
+    Bot.sendMessage(chat.id,
+      "Welcome! You were invited by " + referrer.first_name + "."
+    )
+    // Optional: notify referrer via another command or admin channel
+  },
+  onSelf: async () => {
+    Bot.sendMessage(chat.id, "That's your own invite link — share it with friends!")
+  },
+  onRepeat: async ({ existingReferrer }) => {
+    // User already attributed — usually silent
+  },
+  onOrganic: async () => {
+    Bot.sendMessage(chat.id, "Welcome to the bot!")
   }
 })
-let url = await Libs.refLib.register()
+
+// Continue normal /start logic based on result.type
+if (result.type === "join") {
+  await Libs.ResourcesLibv2.userRes("gold").add(10)  // welcome bonus
+}
+```
+
+**`/mylink` command** — generate and cache link:
+
+```js
+let url = await Libs.refLib.register({ prefix: "ref" })
+let count = await Libs.refLib.count()
+let rank = await Libs.refLib.rank()
+
+Bot.sendMessage(chat.id,
+  "Your invite link:\n" + url +
+  "\n\nReferrals: " + count +
+  (rank ? "\nRank: #" + rank : "")
+)
 ```
 
 ---
 
 ## Core methods
 
+### Configuration and links
+
+| Method | Async | Description |
+| --- | --- | --- |
+| `configure({ prefixes })` | No | Set default prefixes in memory |
+| `link({ bot, prefix })` | No | Build URL — no db I/O |
+| `register({ prefix, bot })` | Yes | Cache profile + save prefix + return URL |
+
+```js
+// link() is instant — good for UI that already called register()
+let quick = Libs.refLib.link({ prefix: "vip" })
+// https://t.me/MyBot?start=vip123456789
+
+// register() should run once per user (e.g. /mylink), not every message
+let url = await Libs.refLib.register()
+```
+
+### Reading data
+
 | Method | Returns | Description |
 | --- | --- | --- |
-| `track(handlers)` | `{ type, ... }` | Process update + fire events |
-| `configure({ prefixes })` | void | Default link prefixes |
-| `link({ bot, prefix })` | string | Build URL (no db) |
-| `register({ prefix, bot })` | string | Cache profile + return URL |
-| `count(userId?)` | number | Referral count |
-| `referrer()` | object\|null | Who referred current user |
-| `isReferred()` | boolean | Has a referrer |
-| `list(userId?, { limit })` | array | Referral list |
-| `leaderboard(top?)` | array | Top N with ranks |
-| `rank(userId?)` | number | Rank (0 = unranked) |
-| `stats(userId?)` | object | Dashboard bundle |
-| `addCount(userId, amount?)` | number | Manual increment |
+| `count(userId?)` | `number` | How many users this person referred |
+| `referrer()` | `object\|null` | Who referred the current user |
+| `isReferred()` | `boolean` | Has `rfl:by` set |
+| `list(userId?, { limit })` | `array` | Referred users with names and dates |
+| `leaderboard(top?)` | `array` | `[{ userId, count, rank }]` |
+| `leaderboardMap()` | `object` | `{ userId: count }` legacy shape |
+| `rank(userId?)` | `number` | Rank 1–50, or `0` if unranked |
+| `stats(userId?)` | `object` | Dashboard bundle (one `mget`) |
+| `addCount(userId, amount?)` | `number` | Manual increment (admin/rewards) |
 
-### Legacy aliases
+```js
+// Dashboard command
+let s = await Libs.refLib.stats()
+Bot.sendMessage(chat.id, [
+  "Referrals: " + s.count,
+  "Rank: " + (s.rank || "unranked"),
+  "Your link: " + s.link,
+  "Referred by: " + (s.referrer ? s.referrer.first_name : "nobody")
+].join("\n"))
 
-`getLink` → `register`, `getRefCount` → `count`, `getAttractedBy` → `referrer`, `getRefList` → `list`, `getTopList` → `leaderboardMap`, `onAttracted` → `onJoin`, `onTouchOwnLink` → `onSelf`, `onAlreadyAttracted` → `onRepeat`
+// Top 10 leaderboard
+let top = await Libs.refLib.leaderboard(10)
+let text = top.map(r => "#" + r.rank + " — ID " + r.userId + ": " + r.count + " refs").join("\n")
+Bot.sendMessage(chat.id, "Top referrers:\n" + text)
+```
+
+### Event handlers in `track()`
+
+| Handler | Legacy alias | When fired |
+| --- | --- | --- |
+| `onJoin` | `onAttracted` | New referral attributed |
+| `onSelf` | `onTouchOwnLink` | User opened own link |
+| `onRepeat` | `onAlreadyAttracted` | Already referred / organic |
+| `onOrganic` | — | Normal `/start` without code |
+
+Handlers receive context objects:
+
+```js
+// onJoin
+{ user, referrer, referrerId, count }
+
+// onSelf
+{ user, prefix }
+
+// onRepeat
+{ user, referrerId, existingReferrer }
+
+// onOrganic
+{ user }
+```
 
 ---
 
-## Storage keys
+## Full example — referral rewards
 
-| Key | Scope | Purpose |
-| --- | --- | --- |
-| `rfl:ct` | db.user | Count (incr) |
-| `rfl:by` | db.user | Referrer |
-| `rfl:ls` | db.user | List (push) |
-| `rfl:og` | db.user | Organic flag |
-| `rfl:top` | db.bot | Top 50 board |
-| `rfl:px` | db.bot | Link prefixes |
-| `rfl:lk:{id}` | db.bot | Profile cache |
+```js
+// /start
+await Libs.refLib.track({
+  onJoin: async ({ referrer, count }) => {
+    // Reward new user
+    await Libs.ResourcesLibv2.userRes("gold").add(25)
+    Bot.sendMessage(chat.id, "Welcome bonus: 25 gold!")
+
+    // Reward referrer (use anotherUserRes for their balance)
+    let refGold = Libs.ResourcesLibv2.anotherUserRes("gold", referrer.id)
+    await refGold.add(50)
+
+    // Milestone rewards
+    if (count === 5) {
+      await refGold.add(200)
+      Bot.sendMessage(chat.id, "Your referrer just hit 5 referrals and earned a bonus!")
+    }
+  }
+})
+```
+
+---
+
+## Full example — VIP prefix
+
+```js
+Libs.refLib.configure({ prefixes: ["ref", "vip"] })
+
+// VIP users get special links
+let prefix = user.is_premium ? "vip" : "ref"
+let url = await Libs.refLib.register({ prefix })
+```
+
+When someone opens `?start=vip123`, `track()` matches the `vip` prefix and attributes normally.
+
+---
+
+## Legacy aliases
+
+| Old | New |
+| --- | --- |
+| `getLink()` | `register()` |
+| `getRefCount()` | `count()` |
+| `getAttractedBy()` | `referrer()` |
+| `getRefList()` | `list()` |
+| `getTopList()` | `leaderboardMap()` |
+
+---
+
+## Common mistakes
+
+```js
+// Wrong — register() on every message (wastes db writes)
+Bot.sendMessage(chat.id, await Libs.refLib.register())
+
+// Correct — register once; use link() for repeat display
+await Libs.refLib.register()  // first time only
+Bot.sendMessage(chat.id, Libs.refLib.link())
+```
+
+```js
+// Wrong — forgot track() in /start (referrals never attributed)
+Bot.sendMessage(chat.id, "Welcome!")
+
+// Correct — track() must run when params may contain ref code
+await Libs.refLib.track({ onJoin: ... })
+```
+
+```js
+// Wrong — expecting old REFLIB keys to work
+// Data from Bot.getProperty era is separate from db rfl:* keys
+```
+
+---
+
+## Notes
+
+- `track()` only processes referral codes when `message` starts with `/start` and `params` is a string.
+- Leaderboard holds max **50** users — updates skip users below the cutoff when full.
+- `link()` uses `user.id` and `bot.name` from globals.
+- Rate limit: attribution does sequential `db` writes — avoid calling `track()` in tight loops.

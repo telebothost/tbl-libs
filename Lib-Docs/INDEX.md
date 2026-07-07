@@ -1,58 +1,103 @@
 # TBL Libs — Documentation Index
 
-All current libraries live in [`libsv2/`](../libsv2/). Version **1.0.0** (pre-release).
+All libraries live in [`Libs/`](../Libs/). Version **1.0.0** (pre-release).
 
-## `libsv2/` files (9)
+TBL loads each file lazily on first access: `Libs.<filenameWithoutJs>.<method>()`. Names are **case-sensitive**.
 
-| File | Access | Type |
-| --- | --- | --- |
-| `random.js` | `Libs.random` | sync |
-| `dateTimeFormat.js` | `Libs.dateTimeFormat` | sync |
-| `tgutil.js` | `Libs.tgutil` | sync |
-| `mcl.js` | `Libs.mcl` | async (+ sync `getBtn`) |
-| `ResourcesLibv2.js` | `Libs.ResourcesLibv2` | async + `db.bot` |
-| `refLib.js` | `Libs.refLib` | async + `db` |
-| `translate.js` | `Libs.translate` | async + `db` + HTTP |
-| `cooldown.js` | `Libs.cooldown` | async + `db` |
-| `ResourcesLib.js` | `Libs.ResourcesLib` | **deprecated** sync copy |
+---
 
-## Sync libraries (no `await`)
+## Library catalog
 
-| Lib | Docs |
+| File | Access | Type | Storage | Docs |
+| --- | --- | --- | --- | --- |
+| `random.js` | `Libs.random` | sync | — | [random.md](random.md) |
+| `dateTimeFormat.js` | `Libs.dateTimeFormat` | sync | — | [dateTimeFormat.md](dateTimeFormat.md) |
+| `tgutil.js` | `Libs.tgutil` | sync | — | [tgutil.md](tgutil.md) |
+| `mcl.js` | `Libs.mcl` | async* | — | [mcl.md](mcl.md) |
+| `ResourcesLibv2.js` | `Libs.ResourcesLibv2` | async | `db.bot` | [ResourcesLibv2.md](ResourcesLibv2.md) |
+| `refLib.js` | `Libs.refLib` | async | `db.user` + `db.bot` | [refLib.md](refLib.md) |
+| `translate.js` | `Libs.translate` | async | `db` + HTTP | [TranslateLib.md](TranslateLib.md) |
+| `cooldown.js` | `Libs.cooldown` | async | `db.user` + `db.bot` | [cooldown.md](cooldown.md) |
+| `ResourcesLib.js` | `Libs.ResourcesLib` | sync (deprecated) | `Bot` properties | [ResourcesLib.md](ResourcesLib.md) |
+
+\* `mcl.getBtn()` is sync; all other `mcl` methods are async.
+
+---
+
+## Sync vs async
+
+| Rule | Libraries |
 | --- | --- |
-| `random` | [random.md](random.md) |
-| `dateTimeFormat` | [dateTimeFormat.md](dateTimeFormat.md) |
-| `tgutil` | [tgutil.md](tgutil.md) |
-| `mcl.getBtn()` | [mcl.md](mcl.md) |
+| Call directly — no `await` | `random`, `dateTimeFormat`, `tgutil`, `mcl.getBtn()` |
+| Always `await` | `mcl`, `ResourcesLibv2`, `refLib`, `translate`, `cooldown` |
 
-## Async libraries (always `await`)
+TBL does not support `.then()` in command Logic — use `await` only.
 
-| Lib | Docs |
+---
+
+## Quick examples
+
+```js
+// Sync
+let roll = Libs.random.randomInt(1, 6)
+let name = Libs.tgutil.getNameFor(user)
+let today = Libs.dateTimeFormat.getCurrentDate("isoDate")
+
+// Async — channel gate
+let ok = await Libs.mcl.quick(user.id, ["@MyChannel"])
+
+// Async — economy
+let gold = Libs.ResourcesLibv2.userRes("gold")
+await gold.add(50)
+Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+
+// Async — referrals
+await Libs.refLib.track({
+  onJoin: async ({ referrer, count }) => {
+    Bot.sendMessage(chat.id, referrer.first_name + " invited you! They have " + count + " refs.")
+  }
+})
+let link = await Libs.refLib.register()
+
+// Async — cooldown
+let run = await Libs.cooldown.tryRun("daily_bonus", 86400)
+if (!run.ok) {
+  return Bot.sendMessage(chat.id, "Come back in " + await Libs.cooldown.format("daily_bonus"))
+}
+
+// Async — translate
+let text = await Libs.translate.translate("Welcome!", { to: "hi" })
+```
+
+---
+
+## Choosing a library
+
+| You need… | Use |
 | --- | --- |
-| `mcl` | [mcl.md](mcl.md) |
-| `ResourcesLibv2` | [ResourcesLibv2.md](ResourcesLibv2.md) |
-| `refLib` | [refLib.md](refLib.md) |
-| `translate` | [TranslateLib.md](TranslateLib.md) |
-| `cooldown` | [cooldown.md](cooldown.md) |
+| Dice, loot, passwords, test data | `random` |
+| Dates, countdowns, relative time | `dateTimeFormat` |
+| User mentions, escaping, WebApp data | `tgutil` |
+| "Join channel to continue" gates | `mcl` |
+| Coins, XP, inventories, passive income | `ResourcesLibv2` |
+| Invite links, referral counts, leaderboard | `refLib` |
+| Multi-language bot text | `translate` |
+| Daily bonus, attack cooldown, rate limits | `cooldown` |
+
+---
 
 ## Deprecated
 
-| Lib | Location | Replacement |
+| Old | Replacement | Why |
 | --- | --- | --- |
-| `ResourcesLib` | `Libs/ResourcesLib.js`, `libsv2/ResourcesLib.js` | `ResourcesLibv2` |
-| `refLib` (old `REFLIB_*` keys) | `Libs/refLib.js` | `libsv2/refLib.js` |
-| `translate` (User properties) | `Libs/translate.js` | `libsv2/translate.js` |
+| `Libs.ResourcesLib` (Bot properties) | `Libs.ResourcesLibv2` (`db.bot`) | Async storage, atomic incr/decr |
+| Old `refLib` (`REFLIB_*` keys) | `Libs.refLib` (`rfl:*` keys) | Atomic counts, bounded leaderboard |
+| Old `translate` (`User.setProperty`) | `Libs.translate` (`db.user`) | Persistent lang + usage tracking |
 
-## Quick access
+Legacy and `db` data are **separate** — migration needs a one-time copy script.
 
-```js
-Libs.random.randomInt(1, 6)                           // sync
-Libs.tgutil.getNameFor(user)                          // sync
-await Libs.mcl.quick(user.id, ["@channel"])           // async
-await Libs.ResourcesLibv2.userRes("gold").add(10)   // async + db
-await Libs.refLib.track({ onJoin: (ctx) => {} })      // async + db
-await Libs.translate.translate("Hello", { to: "es" }) // async
-await Libs.cooldown.tryRun("daily", 86400)            // async + db
-```
+---
 
-Public docs mirror: [tbl-static-docs/docs/libs](https://github.com/telebothost/tbl-static-docs/tree/main/docs/libs)
+## Public docs
+
+Published mirror: [tbl-static-docs/docs/libs](https://github.com/telebothost/tbl-static-docs/tree/main/docs/libs)
