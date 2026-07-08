@@ -31,6 +31,8 @@ Libs.tgutil.getNameFor(user)
 
 Names are **case-sensitive** (`Libs.tgutil` works; `Libs.TgUtil` does not).
 
+In examples, `Bot.sendMessage(text, options?)` sends to the **current chat** — text first, options second.
+
 ### Custom libs — `require("commandname")`
 
 You **cannot** add files to a `Libs/` folder on TBL. To develop or test your own library:
@@ -57,8 +59,8 @@ const mylib = {
   randomInt: function(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   },
-  greet: async function(chatId, name) {
-    await Bot.sendMessage(chatId, "Hello " + name)
+  greet: async function(name) {
+    await Bot.sendMessage("Hello " + name)
   }
 };
 
@@ -71,7 +73,7 @@ module.exports = mylib;
 let game = require("testlib")
 
 let roll = game.randomInt(1, 6)
-Bot.sendMessage(chat.id, "You rolled: " + roll)
+Bot.sendMessage("You rolled: " + roll)
 ```
 
 Use this pattern to prototype libs from this repo (`under_dev/`, or your own code) before contributing them as official `Libs.*` entries.
@@ -105,7 +107,7 @@ Documentation: **[Lib-Docs/](Lib-Docs/INDEX.md)** · Published: [docs.telebothos
 ```js
 let roll = Libs.random.randomInt(1, 6)
 let name = Libs.tgutil.getNameFor(user)
-Bot.sendMessage(chat.id, name + " rolled " + roll)
+Bot.sendMessage(name + " rolled " + roll)
 ```
 
 ### Async
@@ -113,7 +115,7 @@ Bot.sendMessage(chat.id, name + " rolled " + roll)
 ```js
 let gold = Libs.ResourcesLibv2.userRes("gold")
 await gold.add(50)
-Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+Bot.sendMessage("Gold: " + await gold.value())
 ```
 
 ### Channel gate

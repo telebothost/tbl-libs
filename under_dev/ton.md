@@ -57,7 +57,7 @@ let txs = await ton.getTransactions(address, { limit: 10 })
 // Watch for incoming payment
 let check = await ton.findIncomingPayment(address, 1.5)  // 1.5 TON expected
 if (check.found) {
-  Bot.sendMessage(chat.id, 'Payment received!')
+  Bot.sendMessage('Payment received!')
 }
 ```
 
@@ -113,15 +113,15 @@ Api.sendMessage({
 ```js
 // /setwallet command — user sends their TON address in params
 if (!ton.isAddress(params)) {
-  return Bot.sendMessage(chat.id, 'Send a valid TON address.')
+  return Bot.sendMessage('Send a valid TON address.')
 }
 await ton.saveWallet(params.trim())
-Bot.sendMessage(chat.id, 'Wallet saved.')
+Bot.sendMessage('Wallet saved.')
 
 // Later
 let wallet = await ton.getWallet()
 let bal = await ton.getBalanceTon(wallet)
-Bot.sendMessage(chat.id, 'Your balance: ' + ton.format(bal))
+Bot.sendMessage('Your balance: ' + ton.format(bal))
 ```
 
 Storage key: `ton:wallet` on `db.user`.
@@ -140,9 +140,9 @@ let result = await ton.findIncomingPayment(merchantWallet, expected)
 
 if (result.found) {
   await Libs.ResourcesLibv2.userRes('gold').add(100)
-  Bot.sendMessage(chat.id, '2 TON received — 100 gold added!')
+  Bot.sendMessage('2 TON received — 100 gold added!')
 } else {
-  Bot.sendMessage(chat.id, 'Payment not found yet. Wait for confirmation and try /verify again.')
+  Bot.sendMessage('Payment not found yet. Wait for confirmation and try /verify again.')
 }
 ```
 

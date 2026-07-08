@@ -39,7 +39,7 @@ let channels = ["@MyChannel", "@MyGroup"]
 if (await Libs.mcl.quick(user.id, channels)) {
   Bot.run("/premiumMenu")
 } else {
-  Bot.sendMessage(chat.id, "Join our channels first, then try again.")
+  Bot.sendMessage("Join our channels first, then try again.")
 }
 ```
 
@@ -93,10 +93,10 @@ let result = await Libs.mcl.check(user.id, ["@NewsChannel", "@CommunityGroup"])
 
 if (!result.allJoined) {
   if (result.left.length) {
-    Bot.sendMessage(chat.id, "Please join: " + result.left.join(", "))
+    Bot.sendMessage("Please join: " + result.left.join(", "))
   }
   if (result.invalid.length) {
-    Bot.sendMessage(chat.id, "Some channels are misconfigured — contact admin.")
+    Bot.sendMessage("Some channels are misconfigured — contact admin.")
   }
 }
 ```
@@ -109,7 +109,7 @@ Returns `true` or `false` — shortcut for `check().allJoined`.
 
 ```js
 if (await Libs.mcl.quick(user.id, ["@Chan1"])) {
-  Bot.sendMessage(chat.id, "Thanks for joining!")
+  Bot.sendMessage("Thanks for joining!")
 }
 ```
 
@@ -224,7 +224,7 @@ let ok = await Libs.mcl.quick(user.id, ["@RequiredChannel"])
 
 if (ok) {
   await Libs.ResourcesLibv2.userRes("gold").add(10)
-  return Bot.sendMessage(chat.id, "Verified! +10 gold.")
+  return Bot.sendMessage("Verified! +10 gold.")
 }
 
 Api.sendMessage({

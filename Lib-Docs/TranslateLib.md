@@ -69,9 +69,9 @@ try {
     from: "auto",
     fallback: "Translation unavailable"
   })
-  Bot.sendMessage(chat.id, msg)
+  Bot.sendMessage(msg)
 } catch (e) {
-  Bot.sendMessage(chat.id, "Could not translate.")
+  Bot.sendMessage("Could not translate.")
 }
 ```
 
@@ -103,9 +103,9 @@ Returns:
 ```js
 let result = await Libs.translate.tryTranslate("Hello world", { to: "hi" })
 if (result.ok) {
-  Bot.sendMessage(chat.id, result.text + " (via " + result.provider + ")")
+  Bot.sendMessage(result.text + " (via " + result.provider + ")")
 } else {
-  Bot.sendMessage(chat.id, "Error: " + result.error)
+  Bot.sendMessage("Error: " + result.error)
 }
 ```
 
@@ -175,7 +175,8 @@ let rows = Libs.translate.langButtons({
   codes: ["en", "hi", "es", "fr", "de"]  // optional subset
 })
 
-Bot.sendMessage(chat.id, "Choose your language:", {
+await Api.sendMessage({
+  text: "Choose your language:",
   reply_markup: { inline_keyboard: rows }
 })
 ```
@@ -186,14 +187,14 @@ Bot.sendMessage(chat.id, "Choose your language:", {
 let code = Libs.translate.parseLangCallback(callback_data, "lang_")
 if (code) {
   await Libs.translate.setUserLang(user.id, code)
-  Bot.sendMessage(chat.id, "Language set to " + Libs.translate.langName(code))
+  Bot.sendMessage("Language set to " + Libs.translate.langName(code))
 }
 ```
 
 Display all languages as text:
 
 ```js
-Bot.sendMessage(chat.id, Libs.translate.formatLangList("•"))
+Bot.sendMessage(Libs.translate.formatLangList("•"))
 // • Arabic (ar)
 // • Bengali (bn)
 // ...
@@ -211,7 +212,7 @@ let results = await Libs.translate.batch(lines, { to: "ja" })
 
 for (let i = 0; i < results.length; i++) {
   if (results[i].ok) {
-    Bot.sendMessage(chat.id, lines[i] + " → " + results[i].text)
+    Bot.sendMessage(lines[i] + " → " + results[i].text)
   }
 }
 ```
@@ -240,7 +241,7 @@ async function say(text) {
     userId: user.id,
     silent: true
   })
-  Bot.sendMessage(chat.id, translated.text)
+  Bot.sendMessage(translated.text)
 }
 
 await say("Your balance has been updated.")
@@ -258,7 +259,10 @@ let mod = await Libs.translate.tryTranslate(params, {
 })
 
 if (mod.ok) {
-  Bot.sendMessage(adminChatId, "User said: " + mod.text + " (from " + mod.from + ")")
+  await Api.sendMessage({
+    chat_id: adminChatId,
+    text: "User said: " + mod.text + " (from " + mod.from + ")"
+  })
 }
 ```
 
@@ -276,11 +280,11 @@ if (mod.ok) {
 
 ```js
 // Wrong — translate throws and breaks command
-Bot.sendMessage(chat.id, await Libs.translate.translate(longText))
+Bot.sendMessage(await Libs.translate.translate(longText))
 
 // Correct — pre-check length or use tryTranslate
 let r = await Libs.translate.tryTranslate(longText, { to: "hi", silent: true })
-Bot.sendMessage(chat.id, r.text)
+Bot.sendMessage(r.text)
 ```
 
 ```js

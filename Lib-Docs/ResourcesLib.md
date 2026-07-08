@@ -32,12 +32,12 @@
 // Before (deprecated)
 let gold = Libs.ResourcesLib.userRes("gold")
 gold.add(10)
-Bot.sendMessage(chat.id, "Gold: " + gold.value())
+Bot.sendMessage("Gold: " + gold.value())
 
 // After (v2)
 let gold = Libs.ResourcesLibv2.userRes("gold")
 await gold.add(10)
-Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+Bot.sendMessage("Gold: " + await gold.value())
 ```
 
 ---
@@ -107,7 +107,7 @@ gold.add(100)
 
 if (gold.have(50)) {
   gold.remove(50)
-  Bot.sendMessage(chat.id, "Purchased! Balance: " + gold.value())
+  Bot.sendMessage("Purchased! Balance: " + gold.value())
 }
 ```
 

@@ -45,6 +45,15 @@ To **test or develop** code from this repo (including `under_dev/`), create a co
 
 TBL does not support `.then()` in command Logic — use `await` only.
 
+**`Bot.sendMessage`:** first argument is **text**; options (e.g. `parse_mode`) go in the second argument. Sends to the **current chat** automatically — do not pass `chat.id`.
+
+```js
+Bot.sendMessage("Hello!")
+await Bot.sendMessage("Bold text", { parse_mode: "HTML" })
+```
+
+For **inline keyboard** buttons, use `Api.sendMessage({ text, reply_markup })` instead.
+
 ---
 
 ## Quick examples
@@ -61,12 +70,12 @@ let ok = await Libs.mcl.quick(user.id, ["@MyChannel"])
 // Async — economy
 let gold = Libs.ResourcesLibv2.userRes("gold")
 await gold.add(50)
-Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+Bot.sendMessage("Gold: " + await gold.value())
 
 // Async — referrals
 await Libs.refLib.track({
   onJoin: async ({ referrer, count }) => {
-    Bot.sendMessage(chat.id, referrer.first_name + " invited you! They have " + count + " refs.")
+    Bot.sendMessage(referrer.first_name + " invited you! They have " + count + " refs.")
   }
 })
 let link = await Libs.refLib.register()
@@ -74,7 +83,7 @@ let link = await Libs.refLib.register()
 // Async — cooldown
 let run = await Libs.cooldown.tryRun("daily_bonus", 86400)
 if (!run.ok) {
-  return Bot.sendMessage(chat.id, "Come back in " + await Libs.cooldown.format("daily_bonus"))
+  return Bot.sendMessage("Come back in " + await Libs.cooldown.format("daily_bonus"))
 }
 
 // Async — translate

@@ -23,7 +23,7 @@ Bots use randomness everywhere:
 
 ```js
 let roll = Libs.random.randomInt(1, 6)
-Bot.sendMessage(chat.id, "You rolled: " + roll)
+Bot.sendMessage("You rolled: " + roll)
 
 let prize = Libs.random.randomChoice(["gold", "silver", "bronze"])
 let pin = Libs.random.randomString(6, { charset: "numeric" })
@@ -187,7 +187,7 @@ if (d1 === d2) {
   msg += "\nDoubles! Bonus roll: " + Libs.random.randomInt(1, 6)
 }
 
-Bot.sendMessage(chat.id, msg)
+Bot.sendMessage(msg)
 ```
 
 ---
@@ -204,7 +204,7 @@ let amounts = { common: 10, rare: 50, epic: 200, legendary: 1000 }
 let gold = amounts[loot]
 
 await Libs.ResourcesLibv2.userRes("gold").add(gold)
-Bot.sendMessage(chat.id, "You found " + loot + " loot: +" + gold + " gold!")
+Bot.sendMessage("You found " + loot + " loot: +" + gold + " gold!")
 ```
 
 ---
@@ -215,7 +215,7 @@ Bot.sendMessage(chat.id, "You found " + loot + " loot: +" + gold + " gold!")
 let entrants = [111, 222, 333, 444, 555]  // user IDs
 let winner = Libs.random.randomChoice(entrants)
 
-Bot.sendMessage(chat.id, "Winner: user " + winner + "!")
+Bot.sendMessage("Winner: user " + winner + "!")
 ```
 
 ---

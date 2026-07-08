@@ -78,7 +78,7 @@ Alias for `getLinkFor` — most common for greetings.
 
 ```js
 let mention = Libs.tgutil.getUserMention(user, "html")
-Bot.sendMessage(chat.id, "Hello " + mention + "!", { parse_mode: "HTML" })
+Bot.sendMessage("Hello " + mention + "!", { parse_mode: "HTML" })
 ```
 
 **Rule:** match `parseMode` here to `parse_mode` on `Bot.sendMessage`.
@@ -87,7 +87,7 @@ Bot.sendMessage(chat.id, "Hello " + mention + "!", { parse_mode: "HTML" })
 
 ```js
 if (Libs.tgutil.isBot(user)) {
-  return Bot.sendMessage(chat.id, "Bots cannot use this command.")
+  return Bot.sendMessage("Bots cannot use this command.")
 }
 ```
 
@@ -105,14 +105,14 @@ Returns `https://t.me/i/userpic/320/{username}.jpg` or `null` if no username.
 - Private: `chat.invite_link` or derived `t.me/c/...` URL
 
 ```js
-Bot.sendMessage(chat.id, "Join us: " + Libs.tgutil.getChatLink(chat, "html"), { parse_mode: "HTML" })
+Bot.sendMessage("Join us: " + Libs.tgutil.getChatLink(chat, "html"), { parse_mode: "HTML" })
 ```
 
 ### `formatMessageLink(chatId, messageId, parseMode?, text?)`
 
 ```js
 let link = Libs.tgutil.formatMessageLink(msg.chat.id, msg.message_id, "html", "original post")
-Bot.sendMessage(chat.id, "See " + link, { parse_mode: "HTML" })
+Bot.sendMessage("See " + link, { parse_mode: "HTML" })
 ```
 
 ### `createDeepLink(botUsername, command?, params?)`
@@ -132,10 +132,10 @@ Always escape **user input** before embedding in formatted messages.
 
 ```js
 let safe = Libs.tgutil.escapeText(params, "html")
-Bot.sendMessage(chat.id, "<b>You said:</b> " + safe, { parse_mode: "HTML" })
+Bot.sendMessage("<b>You said:</b> " + safe, { parse_mode: "HTML" })
 
 let safe2 = Libs.tgutil.escapeText(params, "markdownv2")
-Bot.sendMessage(chat.id, "You said: " + safe2, { parse_mode: "MarkdownV2" })
+Bot.sendMessage("You said: " + safe2, { parse_mode: "MarkdownV2" })
 ```
 
 | Mode | Escapes |
@@ -152,7 +152,7 @@ Supported: `bold`, `italic`, `underline`, `strikethrough`, `spoiler`, `code`, `p
 ```js
 // Echo formatted message
 let out = Libs.tgutil.parseEntities(msg.text, msg.entities, "html")
-Bot.sendMessage(chat.id, out, { parse_mode: "HTML" })
+Bot.sendMessage(out, { parse_mode: "HTML" })
 ```
 
 ---
@@ -167,12 +167,12 @@ Parses and verifies Telegram WebApp init data using HMAC-SHA256. Defaults to `bo
 let result = Libs.tgutil.validateWebAppData(params.webapp_data)
 
 if (!result.valid) {
-  return Bot.sendMessage(chat.id, "Invalid WebApp: " + result.error)
+  return Bot.sendMessage("Invalid WebApp: " + result.error)
 }
 
 let webUser = result.data.user
 let authDate = result.data.auth_date
-Bot.sendMessage(chat.id, "Hello " + webUser.first_name + "!")
+Bot.sendMessage("Hello " + webUser.first_name + "!")
 ```
 
 Success shape:
@@ -205,7 +205,7 @@ Splits long text for Telegram's 4096 limit. Prefers newline breaks, then spaces,
 ```js
 let parts = Libs.tgutil.splitMessage(longReport, 4096)
 for (let part of parts) {
-  Bot.sendMessage(chat.id, part)
+  Bot.sendMessage(part)
 }
 ```
 
@@ -234,7 +234,7 @@ let card = [
 
 if (photo) card.push("Photo: " + photo)
 
-Bot.sendMessage(chat.id, card.join("\n"), { parse_mode: "HTML" })
+Bot.sendMessage(card.join("\n"), { parse_mode: "HTML" })
 ```
 
 ---
@@ -245,7 +245,7 @@ Bot.sendMessage(chat.id, card.join("\n"), { parse_mode: "HTML" })
 let quoted = Libs.tgutil.escapeText(params, "html")
 let who = Libs.tgutil.getUserMention(user, "html")
 
-Bot.sendMessage(chat.id,
+Bot.sendMessage(
   who + " said:\n<i>" + quoted + "</i>",
   { parse_mode: "HTML" }
 )

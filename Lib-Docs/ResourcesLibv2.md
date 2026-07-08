@@ -56,12 +56,12 @@ User ID comes from `user.telegramid`; chat ID from `chat.chatid`.
 let gold = Libs.ResourcesLibv2.userRes("gold")
 
 await gold.add(100)
-Bot.sendMessage(chat.id, "Balance: " + await gold.value())
+Bot.sendMessage("Balance: " + await gold.value())
 
 // Shop UI — show pending mining income without committing
 let pending = (await gold.stats()).pending
 if (pending > 0) {
-  Bot.sendMessage(chat.id, "+" + pending + " gold ready to collect (open /wallet)")
+  Bot.sendMessage("+" + pending + " gold ready to collect (open /wallet)")
 }
 ```
 
@@ -89,13 +89,13 @@ let gold = Libs.ResourcesLibv2.userRes("gold")
 // Safe shop purchase
 let buy = await gold.tryRemove(50)
 if (!buy.ok) {
-  return Bot.sendMessage(chat.id, "Need 50 gold, you have " + buy.balance)
+  return Bot.sendMessage("Need 50 gold, you have " + buy.balance)
 }
-Bot.sendMessage(chat.id, "Purchased! " + buy.balance + " gold left.")
+Bot.sendMessage("Purchased! " + buy.balance + " gold left.")
 
 // Or one-liner
 if (!(await gold.spend(50))) {
-  return Bot.sendMessage(chat.id, "Not enough gold.")
+  return Bot.sendMessage("Not enough gold.")
 }
 ```
 
@@ -169,8 +169,7 @@ await g.addPercent({ percent: 5, interval: 3600 })
 ```js
 let stats = await gold.stats()
 if (stats.growth) {
-  Bot.sendMessage(chat.id,
-    "Mining: " + Math.round(stats.growth.progress) + "% — next tick in " +
+  Bot.sendMessage(    "Mining: " + Math.round(stats.growth.progress) + "% — next tick in " +
     Math.round(stats.growth.nextTickIn) + "s"
   )
 }
@@ -209,11 +208,10 @@ let craft = await Libs.ResourcesLibv2.spendAll([
 ])
 
 if (!craft.ok) {
-  return Bot.sendMessage(chat.id,
-    "Need more " + craft.missing + " (have " + craft.have + ", need " + craft.need + ")"
+  return Bot.sendMessage(    "Need more " + craft.missing + " (have " + craft.have + ", need " + craft.need + ")"
   )
 }
-Bot.sendMessage(chat.id, "Item crafted!")
+Bot.sendMessage("Item crafted!")
 ```
 
 ### `clearCache()`
@@ -241,7 +239,7 @@ if (goldStats.pending > 0) {
   msg.push("(+" + goldStats.pending + " gold from mining)")
 }
 
-Bot.sendMessage(chat.id, msg.join("\n"))
+Bot.sendMessage(msg.join("\n"))
 ```
 
 ---
@@ -254,11 +252,11 @@ let gold = Libs.ResourcesLibv2.userRes("gold")
 let g = Libs.ResourcesLibv2.growthFor(gold)
 
 if (await g.have()) {
-  return Bot.sendMessage(chat.id, "Mining already enabled.")
+  return Bot.sendMessage("Mining already enabled.")
 }
 
 await g.add({ value: 1, interval: 120, max: 10000 })
-Bot.sendMessage(chat.id, "Mining enabled! +1 gold every 2 minutes (cap 10,000).")
+Bot.sendMessage("Mining enabled! +1 gold every 2 minutes (cap 10,000).")
 ```
 
 ---
@@ -282,10 +280,10 @@ See [ResourcesLib.md](ResourcesLib.md) for legacy sync API.
 
 ```js
 // Wrong — forget await (gets Promise, not number)
-Bot.sendMessage(chat.id, "Gold: " + gold.value())
+Bot.sendMessage("Gold: " + gold.value())
 
 // Correct
-Bot.sendMessage(chat.id, "Gold: " + await gold.value())
+Bot.sendMessage("Gold: " + await gold.value())
 ```
 
 ```js
@@ -294,7 +292,7 @@ await gold.remove(999)
 
 // Correct — use tryRemove or spend
 let r = await gold.tryRemove(999)
-if (!r.ok) Bot.sendMessage(chat.id, "Not enough.")
+if (!r.ok) Bot.sendMessage("Not enough.")
 ```
 
 ---

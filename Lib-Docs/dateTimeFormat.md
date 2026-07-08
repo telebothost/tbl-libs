@@ -26,7 +26,7 @@ let today = Libs.dateTimeFormat.getCurrentDate("isoDate")
 // "2025-07-07"
 
 let nextWeek = Libs.dateTimeFormat.addDays(new Date(), 7)
-Bot.sendMessage(chat.id, "Event: " + Libs.dateTimeFormat.format(nextWeek, "fullDate"))
+Bot.sendMessage("Event: " + Libs.dateTimeFormat.format(nextWeek, "fullDate"))
 
 let ago = Libs.dateTimeFormat.toRelativeTime(user.last_seen)
 // "2 hours ago"
@@ -146,7 +146,7 @@ let diff = Libs.dateTimeFormat.getTimeDifference("2025-01-01", "2025-02-01")
 
 ```js
 if (!Libs.dateTimeFormat.isValidDate(userInput)) {
-  return Bot.sendMessage(chat.id, "Invalid date format.")
+  return Bot.sendMessage("Invalid date format.")
 }
 ```
 
@@ -220,11 +220,10 @@ let signup = new Date()
 let expiry = Libs.dateTimeFormat.addTime(signup, { months: 1 })
 
 if (new Date() > expiry) {
-  Bot.sendMessage(chat.id, "Subscription expired.")
+  Bot.sendMessage("Subscription expired.")
 } else {
   let diff = Libs.dateTimeFormat.getTimeDifference(new Date(), expiry)
-  Bot.sendMessage(chat.id,
-    "Active — expires in " + diff.days + " days (" +
+  Bot.sendMessage(    "Active — expires in " + diff.days + " days (" +
     Libs.dateTimeFormat.format(expiry, "mediumDate") + ")"
   )
 }
@@ -238,8 +237,7 @@ if (new Date() > expiry) {
 let eventDate = Libs.dateTimeFormat.addDays(new Date(), 7)
 let diff = Libs.dateTimeFormat.getTimeDifference(new Date(), eventDate)
 
-Bot.sendMessage(chat.id,
-  "Event in " + diff.days + " days, " + (diff.hours % 24) + " hours!\n" +
+Bot.sendMessage(  "Event in " + diff.days + " days, " + (diff.hours % 24) + " hours!\n" +
   "Date: " + Libs.dateTimeFormat.format(eventDate, "fullDate")
 )
 ```
@@ -251,8 +249,7 @@ Bot.sendMessage(chat.id,
 ```js
 let until = await Libs.cooldown.until("daily_bonus")
 if (until) {
-  Bot.sendMessage(chat.id,
-    "Next bonus: " + Libs.dateTimeFormat.toRelativeTime(until)
+  Bot.sendMessage(    "Next bonus: " + Libs.dateTimeFormat.toRelativeTime(until)
   )
 }
 ```

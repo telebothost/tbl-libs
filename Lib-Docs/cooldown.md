@@ -40,12 +40,12 @@ let run = await Libs.cooldown.tryRun("daily_bonus", 86400)  // 24 hours
 
 if (!run.ok) {
   let wait = await Libs.cooldown.format("daily_bonus")
-  return Bot.sendMessage(chat.id, "Daily bonus already claimed. Try again in " + wait + ".")
+  return Bot.sendMessage("Daily bonus already claimed. Try again in " + wait + ".")
 }
 
 // Grant reward — cooldown was set automatically by tryRun
 await Libs.ResourcesLibv2.userRes("gold").add(100)
-Bot.sendMessage(chat.id, "You received 100 gold!")
+Bot.sendMessage("You received 100 gold!")
 ```
 
 ---
@@ -79,7 +79,7 @@ await Libs.cooldown.setGlobal("maintenance", 300) // all users, 5 min
 ```js
 if (await Libs.cooldown.active("spin")) {
   let secs = await Libs.cooldown.remaining("spin")
-  Bot.sendMessage(chat.id, "Spin again in " + secs + "s")
+  Bot.sendMessage("Spin again in " + secs + "s")
 }
 ```
 
@@ -93,9 +93,9 @@ if (await Libs.cooldown.active("spin")) {
 ```js
 let result = await Libs.cooldown.tryRun("fishing", 120)
 if (result.ok) {
-  Bot.sendMessage(chat.id, "You caught a fish!")
+  Bot.sendMessage("You caught a fish!")
 } else {
-  Bot.sendMessage(chat.id, "Wait " + result.remaining + " more seconds.")
+  Bot.sendMessage("Wait " + result.remaining + " more seconds.")
 }
 ```
 
@@ -117,7 +117,7 @@ for (let name in status) {
     ? Libs.cooldown.formatSeconds(status[name].remaining)
     : "ready"))
 }
-Bot.sendMessage(chat.id, lines.join("\n"))
+Bot.sendMessage(lines.join("\n"))
 ```
 
 ### Clearing
@@ -142,15 +142,14 @@ await Libs.cooldown.clear("daily_bonus", targetUserId)
 let skills = await Libs.cooldown.checkAll(["slash", "fireball", "shield"])
 
 if (skills.slash.active) {
-  return Bot.sendMessage(chat.id,
-    "Slash on cooldown (" + Libs.cooldown.formatSeconds(skills.slash.remaining) + "). " +
+  return Bot.sendMessage(    "Slash on cooldown (" + Libs.cooldown.formatSeconds(skills.slash.remaining) + "). " +
     "Fireball: " + (skills.fireball.active ? "CD" : "ready") + ", " +
     "Shield: " + (skills.shield.active ? "CD" : "ready")
   )
 }
 
 await Libs.cooldown.set("slash", 5)
-Bot.sendMessage(chat.id, "You slashed the enemy!")
+Bot.sendMessage("You slashed the enemy!")
 ```
 
 ---
@@ -163,8 +162,7 @@ await Libs.cooldown.setGlobal("bot_pause", 1800)  // 30 min pause for everyone
 
 // Any command — check first
 if (await Libs.cooldown.activeGlobal("bot_pause")) {
-  return Bot.sendMessage(chat.id,
-    "Bot is in maintenance. Resumes in " + await Libs.cooldown.formatGlobal("bot_pause")
+  return Bot.sendMessage(    "Bot is in maintenance. Resumes in " + await Libs.cooldown.formatGlobal("bot_pause")
   )
 }
 ```
@@ -187,7 +185,7 @@ await Libs.cooldown.set("daily", 86400)
 if (!userIsPremium) return  // user blocked but cooldown already set!
 
 // Correct — check conditions first, then tryRun
-if (!userIsPremium) return Bot.sendMessage(chat.id, "Premium only.")
+if (!userIsPremium) return Bot.sendMessage("Premium only.")
 let run = await Libs.cooldown.tryRun("daily", 86400)
 ```
 

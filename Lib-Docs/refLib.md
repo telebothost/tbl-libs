@@ -72,19 +72,18 @@ User B's /start    →  track() attributes B to A
 let result = await Libs.refLib.track({
   prefixes: ["ref", "vip"],
   onJoin: async ({ referrer, count }) => {
-    Bot.sendMessage(chat.id,
-      "Welcome! You were invited by " + referrer.first_name + "."
+    Bot.sendMessage(      "Welcome! You were invited by " + referrer.first_name + "."
     )
     // Optional: notify referrer via another command or admin channel
   },
   onSelf: async () => {
-    Bot.sendMessage(chat.id, "That's your own invite link — share it with friends!")
+    Bot.sendMessage("That's your own invite link — share it with friends!")
   },
   onRepeat: async ({ existingReferrer }) => {
     // User already attributed — usually silent
   },
   onOrganic: async () => {
-    Bot.sendMessage(chat.id, "Welcome to the bot!")
+    Bot.sendMessage("Welcome to the bot!")
   }
 })
 
@@ -101,8 +100,7 @@ let url = await Libs.refLib.register({ prefix: "ref" })
 let count = await Libs.refLib.count()
 let rank = await Libs.refLib.rank()
 
-Bot.sendMessage(chat.id,
-  "Your invite link:\n" + url +
+Bot.sendMessage(  "Your invite link:\n" + url +
   "\n\nReferrals: " + count +
   (rank ? "\nRank: #" + rank : "")
 )
@@ -146,7 +144,7 @@ let url = await Libs.refLib.register()
 ```js
 // Dashboard command
 let s = await Libs.refLib.stats()
-Bot.sendMessage(chat.id, [
+Bot.sendMessage([
   "Referrals: " + s.count,
   "Rank: " + (s.rank || "unranked"),
   "Your link: " + s.link,
@@ -156,7 +154,7 @@ Bot.sendMessage(chat.id, [
 // Top 10 leaderboard
 let top = await Libs.refLib.leaderboard(10)
 let text = top.map(r => "#" + r.rank + " — ID " + r.userId + ": " + r.count + " refs").join("\n")
-Bot.sendMessage(chat.id, "Top referrers:\n" + text)
+Bot.sendMessage("Top referrers:\n" + text)
 ```
 
 ### Event handlers in `track()`
@@ -194,7 +192,7 @@ await Libs.refLib.track({
   onJoin: async ({ referrer, count }) => {
     // Reward new user
     await Libs.ResourcesLibv2.userRes("gold").add(25)
-    Bot.sendMessage(chat.id, "Welcome bonus: 25 gold!")
+    Bot.sendMessage("Welcome bonus: 25 gold!")
 
     // Reward referrer (use anotherUserRes for their balance)
     let refGold = Libs.ResourcesLibv2.anotherUserRes("gold", referrer.id)
@@ -203,7 +201,7 @@ await Libs.refLib.track({
     // Milestone rewards
     if (count === 5) {
       await refGold.add(200)
-      Bot.sendMessage(chat.id, "Your referrer just hit 5 referrals and earned a bonus!")
+      Bot.sendMessage("Your referrer just hit 5 referrals and earned a bonus!")
     }
   }
 })
@@ -241,16 +239,16 @@ When someone opens `?start=vip123`, `track()` matches the `vip` prefix and attri
 
 ```js
 // Wrong — register() on every message (wastes db writes)
-Bot.sendMessage(chat.id, await Libs.refLib.register())
+Bot.sendMessage(await Libs.refLib.register())
 
 // Correct — register once; use link() for repeat display
 await Libs.refLib.register()  // first time only
-Bot.sendMessage(chat.id, Libs.refLib.link())
+Bot.sendMessage(Libs.refLib.link())
 ```
 
 ```js
 // Wrong — forgot track() in /start (referrals never attributed)
-Bot.sendMessage(chat.id, "Welcome!")
+Bot.sendMessage("Welcome!")
 
 // Correct — track() must run when params may contain ref code
 await Libs.refLib.track({ onJoin: ... })

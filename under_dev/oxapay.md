@@ -47,7 +47,8 @@ let invoice = await oxapay.createInvoice({
   userId: user.id
 })
 
-Bot.sendMessage(chat.id, 'Pay here: ' + invoice.payment_url, {
+await Api.sendMessage({
+  text: 'Pay here: ' + invoice.payment_url,
   reply_markup: { inline_keyboard: oxapay.payButton(invoice.payment_url, 'Pay with crypto') }
 })
 ```
@@ -68,7 +69,7 @@ let dep = await oxapay.createStaticAddress({
   store: true
 })
 
-Bot.sendMessage(chat.id,
+Bot.sendMessage(
   'Send payment to:\n' + dep.address +
   (dep.memo ? '\nMemo: ' + dep.memo : '')
 )
@@ -84,7 +85,7 @@ let payment = await oxapay.getPayment(track_id)
 
 if (oxapay.isPaid(payment.status)) {
   await Libs.ResourcesLibv2.userRes('premium').add(30)
-  Bot.sendMessage(chat.id, 'Payment confirmed — premium activated!')
+  Bot.sendMessage('Payment confirmed — premium activated!')
 }
 ```
 
