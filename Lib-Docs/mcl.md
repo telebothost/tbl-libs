@@ -1,184 +1,281 @@
-# 📦 Telegram Channel Membership Checker Library (`Libs.mcl`)
+# MCL (Membership Checker)
 
-A utility to check if a user has joined specific Telegram channels—returns full status details, works with inline buttons, and handles up to 10 channels with ease.
+Verify that users joined required Telegram channels or groups before granting access.
 
----
-
-## 🚀 Features
-
-- ✅ Validates up to 10 channels per call
-- 📊 Classifies channels into: `valid`, `left`, and `invalid`
-- 💬 Returns user-readable summary
-- 🎯 Supports inline keyboard button generation
-- 🛡️ Handles Telegram API errors internally
+**File:** `Libs/mcl.js` · **Access:** `Libs.mcl.*` · **Async** (except `getBtn`) · v1.0.0
 
 ---
 
-## 📥 How to Access
+## What problem does it solve?
 
-If loaded via your Libs loader system:
+Classic bot pattern: *"Join our channel to unlock this feature."*
+
+`mcl` calls Telegram's `getChatMember` API live for each channel and tells you:
+
+- Which channels the user joined
+- Which they left or were kicked from
+- Which channels the bot cannot access (invalid)
+
+It also builds join buttons and ready-to-send status messages.
+
+---
+
+## Requirements
+
+| Rule | Detail |
+| --- | --- |
+| Bot must be in channel | Add bot as member/admin first |
+| `getChatMember` permission | Bot needs rights to check membership |
+| Max channels | **10** per call |
+| `getBtn` usernames | Only public `@username` — numeric IDs skipped |
+
+---
+
+## Quick start — simple gate
 
 ```js
-await Libs.mcl.check(user.id, ["@Chan1", "@Chan2"]);
+let channels = ["@MyChannel", "@MyGroup"]
+
+if (await Libs.mcl.quick(user.id, channels)) {
+  Bot.run("/premiumMenu")
+} else {
+  Bot.sendMessage("Join our channels first, then try again.")
+}
 ```
 
-> **Note:** This is an **async library**. You must use `await` when calling any method!
+---
+
+## Methods
+
+| Method | Async | Description |
+| --- | --- | --- |
+| `check(userId, channels)` | Yes | Full breakdown |
+| `quick(userId, channels)` | Yes | `true` if all joined |
+| `getLeftChannels(userId, channels)` | Yes | Channels user left |
+| `getInvalidChannels(userId, channels)` | Yes | `{ channel, reason }[]` |
+| `summaryText(userId, channels, options?)` | Yes | User-facing message |
+| `getStats(userId, channels)` | Yes | Numeric summary |
+| `getBtn(channels, options?)` | **No** | Inline join buttons |
 
 ---
 
-## 📘 Method Summary
+## `check(userId, channels)`
 
-| Method | Description |
-|--------|-------------|
-| `check(userId, channels)` | Main method – returns breakdown of membership status. |
-| `quick(userId, channels)` | Returns `true` if all channels are joined. |
-| `getLeftChannels(userId, channels)` | Returns only the channels the user left. |
-| `getInvalidChannels(userId, channels)` | Returns only the invalid/inaccessible channels. |
-| `summaryText(userId, channels)` | Returns a readable text message based on check. |
-| `getBtn(channels)` | Generates inline keyboard buttons for join links. |
+Main method — returns detailed result.
 
----
+### Parameters
 
-## 📤 check(userId, channels)
+| Param | Type | Description |
+| --- | --- | --- |
+| `userId` | `number` | Telegram user ID |
+| `channels` | `string[]` | `"@username"` or numeric chat ID |
 
-Returns full analysis of the user's status in each channel.
+### Returns
 
-### Parameters:
-- `userId`: Telegram user ID
-- `channels`: Array of channel usernames (e.g., `["@MyChannel"]`) or numeric IDs
-
-### Returns:
 ```js
 {
-  all_joined: true,
-  valid: [ '@Channel1', '@Channel2' ],
+  allJoined: true,
+  joined: ["@Channel1", "@Channel2"],
   left: [],
-  invalid: [],
-  details: [
-    {
-      channel: '@Channel1',
-      member: { /* full getChatMember response */ }
-    }
-  ]
+  invalid: []
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `allJoined` | `true` only if user joined every valid channel |
+| `joined` | Confirmed memberships |
+| `left` | Status `left` or `kicked` |
+| `invalid` | `{ channel, reason }` — bot can't access |
+
+```js
+let result = await Libs.mcl.check(user.id, ["@NewsChannel", "@CommunityGroup"])
+
+if (!result.allJoined) {
+  if (result.left.length) {
+    Bot.sendMessage("Please join: " + result.left.join(", "))
+  }
+  if (result.invalid.length) {
+    Bot.sendMessage("Some channels are misconfigured — contact admin.")
+  }
 }
 ```
 
 ---
 
-## ⚡ quick(userId, channels)
+## `quick(userId, channels)`
 
-Returns `true` only if all valid channels are joined.
-
-```js
-const ok = await Libs.mcl.quick(user.id, ["@Chan1", "@Chan2"]);
-```
-
----
-
-## 🔍 getLeftChannels(userId, channels)
-
-Returns channels the user has **left**:
+Returns `true` or `false` — shortcut for `check().allJoined`.
 
 ```js
-const left = await Libs.mcl.getLeftChannels(user.id, ["@Chan1", "@Chan2"]);
-```
-
----
-
-## 🛑 getInvalidChannels(userId, channels)
-
-Returns channels that are **inaccessible or invalid**:
-
-```js
-const bad = await Libs.mcl.getInvalidChannels(user.id, ["@Chan1", "@Chan2"]);
-```
-
----
-
-## 📝 summaryText(userId, channels)
-
-Returns readable status text to send to users.
-
-```js
-const msg = await Libs.mcl.summaryText(user.id, ["@Chan1", "@Chan2"]);
-await Api.sendMessage({ chat_id: user.id, text: msg });
-```
-
----
-
-## 🔘 getBtn(channels)
-
-Generates inline keyboard for users to join channels.
-
-```js
-const btn = Libs.mcl.getBtn(["@Chan1", "@Chan2"]);
-await Api.sendInlineKeyboard({
-  chat_id: user.id,
-  text: "👉 Join the channels:",
-  reply_markup: { inline_keyboard: btn }
-});
-```
-
-**Output:**
-```js
-[
-  [{ text: "📢 Join @Chan1", url: "https://t.me/Chan1" }],
-  [{ text: "📢 Join @Chan2", url: "https://t.me/Chan2" }]
-]
-```
-
----
-
-## ⚠️ Common Mistakes
-
-### ❌ Not using `await`
-
-All methods are `async`, so you must use `await`:
-
-```js
-// Correct ✅
-const res = await Libs.mcl.check(user.id, ["@Chan1"]);
-
-// Wrong ❌
-const res = Libs.mcl.check(user.id, ["@Chan1"]); // Will return a Promise!
-```
-
----
-
-### ❌ Invalid or Too Many Channels
-
-```js
-await Libs.mcl.check(user.id, ["@Too", "@Many", "@Channels", ...]); // ❌ throws error if >10
-```
-
-Limit: **max 10 channels**
-
----
-
-### ❌ Channel ID without `@` → no link in `getBtn()`
-
-```js
-Libs.mcl.getBtn([-10012345678]); // Ignored in output ❌
-```
-
-Use usernames like `@MyChannel` for inline button generation.
-
----
-
-## 🧪 Example Full Flow
-
-```js
-const checkResult = await Libs.mcl.check(user.id, ["@Chan1", "@Chan2"]);
-
-if (!checkResult.all_joined) {
-  await Api.sendInlineKeyboard({
-    chat_id: user.id,
-    text: await Libs.mcl.summaryText(user.id, ["@Chan1", "@Chan2"]),
-    reply_markup: {
-      inline_keyboard: Libs.mcl.getBtn(checkResult.left)
-    }
-  });
+if (await Libs.mcl.quick(user.id, ["@Chan1"])) {
+  Bot.sendMessage("Thanks for joining!")
 }
 ```
 
 ---
+
+## `getLeftChannels` / `getInvalidChannels`
+
+```js
+let left = await Libs.mcl.getLeftChannels(user.id, channels)
+// ["@Chan2"]
+
+let bad = await Libs.mcl.getInvalidChannels(user.id, channels)
+// [{ channel: "@Fake", reason: "Channel inaccessible" }]
+```
+
+---
+
+## `summaryText(userId, channels, options?)`
+
+Ready-to-send status text. Customize via options:
+
+| Option | Default |
+| --- | --- |
+| `joinedMessage` | `"You have joined all required channels."` |
+| `leftHeader` | `"Please join the following channels:"` |
+| `invalidHeader` | `"Inaccessible channels:"` |
+| `separator` | `"\n\n"` |
+
+```js
+let text = await Libs.mcl.summaryText(user.id, channels, {
+  joinedMessage: "All good — here's your reward!",
+  leftHeader: "Join these channels to continue:"
+})
+```
+
+---
+
+## `getStats(userId, channels)`
+
+```js
+let stats = await Libs.mcl.getStats(user.id, channels)
+// {
+//   total: 3,
+//   joinedCount: 2,
+//   leftCount: 1,
+//   invalidCount: 0,
+//   percentJoined: 66.666...,
+//   allJoined: false,
+//   hasIssues: true
+// }
+```
+
+Useful for admin dashboards or analytics commands.
+
+---
+
+## `getBtn(channels, options?)`
+
+**Sync** — no `await`. Builds inline keyboard join rows.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `buttonPrefix` | `"Join"` | Text before `@channel` |
+
+Only `@username` public channels get buttons. Private numeric IDs are skipped.
+
+```js
+let buttons = Libs.mcl.getBtn(["@Chan1", "@Chan2"], { buttonPrefix: "📢 Join" })
+// [
+//   [{ text: "📢 Join @Chan1", url: "https://t.me/Chan1" }],
+//   [{ text: "📢 Join @Chan2", url: "https://t.me/Chan2" }]
+// ]
+
+Api.sendMessage({
+  chat_id: chat.id,
+  text: "Join to continue:",
+  reply_markup: { inline_keyboard: buttons }
+})
+```
+
+---
+
+## Full gate example
+
+```js
+let channels = ["@MyChannel", "@MyGroup"]
+let result = await Libs.mcl.check(user.id, channels)
+
+if (result.allJoined) {
+  Bot.run("/mainMenu")
+  return
+}
+
+let left = result.left.length ? result.left : channels
+
+await Api.sendMessage({
+  chat_id: chat.id,
+  text: await Libs.mcl.summaryText(user.id, channels),
+  reply_markup: {
+    inline_keyboard: Libs.mcl.getBtn(left, { buttonPrefix: "📢 Join" })
+  }
+})
+```
+
+---
+
+## Full example — soft gate with retry button
+
+```js
+// /verify command — user taps after joining
+let ok = await Libs.mcl.quick(user.id, ["@RequiredChannel"])
+
+if (ok) {
+  await Libs.ResourcesLibv2.userRes("gold").add(10)
+  return Bot.sendMessage("Verified! +10 gold.")
+}
+
+Api.sendMessage({
+  chat_id: chat.id,
+  text: "Join @RequiredChannel then tap Verify.",
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: "Join Channel", url: "https://t.me/RequiredChannel" }],
+      [{ text: "Verify", callback_data: "verify_join" }]
+    ]
+  }
+})
+```
+
+---
+
+## Common mistakes
+
+```js
+// Wrong — ok is a Promise, not boolean
+if (Libs.mcl.quick(user.id, channels)) { ... }
+
+// Correct
+if (await Libs.mcl.quick(user.id, channels)) { ... }
+```
+
+```js
+// Wrong — numeric ID won't appear in getBtn
+Libs.mcl.getBtn([-1001234567890])
+
+// Correct — use @username for join buttons
+Libs.mcl.getBtn(["@MyChannel"])
+```
+
+```js
+// Wrong — bot not in channel → silent invalid, gate never passes
+// Fix: add bot to channel as member/admin BEFORE deploying gate
+```
+
+```js
+// Wrong — more than 10 channels
+await Libs.mcl.check(user.id, bigArray)  // throws LimitError
+
+// Correct — split into batches of 10
+```
+
+---
+
+## Notes
+
+- Membership checked **live** — not cached.
+- Throws `[LibsError]` if channels array empty or > 10 items.
+- Channel strings accept `@Chan` or `Chan` — normalized internally.
+- TBL does not support `.then()` — always `await` async methods.

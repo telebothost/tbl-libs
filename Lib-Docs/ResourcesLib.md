@@ -1,216 +1,119 @@
-# ResourcesLib Documentation
+# ResourcesLib (deprecated)
 
-A flexible resource management library for handling numeric resources with growth/decay functionality.
+**Legacy sync economy library.** Uses deprecated `Bot.getProperty` / `Bot.setProperty`.
 
-## Installation
+**File:** `Libs/ResourcesLib.js` · **Access:** `Libs.ResourcesLib.*` · **Sync** · **DEPRECATED**
 
-```javascript
-const ResourcesLib = Libs.ResourcesLib;
-// Now u can use ResourcesLib.xxx()
+**Use instead:** [`ResourcesLibv2`](ResourcesLibv2.md) (`Libs.ResourcesLibv2`) with async `db.bot`.
+
+---
+
+## Why deprecated?
+
+| Issue | Legacy `ResourcesLib` | Modern `ResourcesLibv2` |
+| --- | --- | --- |
+| Storage | `Bot.getProperty` / `Bot.setProperty` | `db.bot` async API |
+| Atomic updates | Read-modify-write (race risk) | `incr` / `decr` atomic |
+| Async | Sync only | Proper `await` |
+| New features | — | `peek`, `preview`, `stats`, `spendAll`, `tryRemove`, etc. |
+
+`ResourcesLibv2` uses the **same storage keys** (`ResourcesLib_user_{id}_{name}`) — balances can carry over when you migrate call sites to `await`.
+
+---
+
+## Migration checklist
+
+1. Replace `Libs.ResourcesLib` → `Libs.ResourcesLibv2`
+2. Add `await` to every resource method call
+3. Test balances still read correctly (keys unchanged)
+4. Remove `ResourcesLib.js` from your bot once fully migrated
+
+```js
+// Before (deprecated)
+let gold = Libs.ResourcesLib.userRes("gold")
+gold.add(10)
+Bot.sendMessage("Gold: " + gold.value())
+
+// After (v2)
+let gold = Libs.ResourcesLibv2.userRes("gold")
+await gold.add(10)
+Bot.sendMessage("Gold: " + await gold.value())
 ```
 
-## Core Concepts
+---
 
-- **Resources**: Numeric values that can grow/decay over time
-- **Growth Types**:
-  - Simple (fixed amount per interval)
-  - Percent (percentage of base value)
-  - Compound Interest (exponential growth)
+## Legacy API (sync)
 
-## Resource Creation Methods
+If you must maintain old code temporarily, the sync API mirrors v2 conceptually:
 
-### User Resources
+### Factories
 
-```javascript
-// Current user's resource
-const gold = ResourcesLib.userRes('gold');
-
-// Another user's resource
-const friendGold = ResourcesLib.anotherUserRes('gold', friendTelegramId);
+```js
+Libs.ResourcesLib.userRes("gold")
+Libs.ResourcesLib.chatRes("points")
+Libs.ResourcesLib.globalRes("pool")
+Libs.ResourcesLib.anotherUserRes("gold", telegramId)
+Libs.ResourcesLib.anotherChatRes("points", chatId)
+Libs.ResourcesLib.growthFor(resource)
 ```
 
-### Chat Resources
-
-```javascript
-// Current chat's resource
-const groupPoints = ResourcesLib.chatRes('points');
-
-// Another chat's resource
-const otherGroupPoints = ResourcesLib.anotherChatRes('points', otherChatId);
-```
-
-## Basic Resource Operations
-
-### Getting/Setting Values
-
-```javascript
-// Get current value
-const currentGold = gold.value();
-
-// Set value (auto-converts strings to numbers)
-gold.set(100); 
-gold.set("50"); // automatically converted to 50
-
-// Add to current value
-gold.add(25);
-
-// Remove from current value
-gold.remove(10);
-```
-
-### Checking Resources
-
-```javascript
-// Check if has enough
-if (gold.have(30)) {
-  gold.remove(30);
-}
-
-// Force remove (even if negative)
-gold.removeAnyway(100);
-```
-
-### Transfers Between Resources
-
-```javascript
-// Transfer between users
-gold.transferTo(friendGold, 20);
-
-// Force transfer
-gold.transferToAnyway(friendGold, 50);
-
-// Exchange with different rates
-gold.exchangeTo(silver, {
-  remove_amount: 1,
-  add_amount: 100
-});
-```
-
-## Growth Management
-
-### Adding Growth
-
-```javascript
-// Simple growth (fixed amount)
-ResourcesLib.growthFor(gold).add({
-  value: 1,          // amount to add
-  interval: 60,      // every 60 seconds
-  max: 1000          // optional max value
-});
-
-// Percentage growth
-ResourcesLib.growthFor(gold).addPercent({
-  percent: 5,        // 5% of base value
-  interval: 300,     // every 5 minutes
-  min: 0             // optional min value
-});
-
-// Compound interest
-ResourcesLib.growthFor(gold).addCompoundInterest({
-  percent: 2,        // 2% compound growth
-  interval: 3600,    // every hour
-  max_iterations_count: 100 // limit to 100 iterations
-});
-```
-
-### Managing Growth
-
-```javascript
-const goldGrowth = ResourcesLib.growthFor(gold);
-
-// Check if growing
-if (goldGrowth.isEnabled()) {
-  // Get growth info
-  const progress = goldGrowth.progress(); // 0-100%
-  const timeLeft = goldGrowth.willCompleteAfter(); // seconds
-  
-  // Stop growth
-  goldGrowth.stop();
-}
-```
-
-## Complete API Reference
-
-### Resource Methods
+### Resource methods (all sync — no await)
 
 | Method | Description |
-|--------|-------------|
-| `.value()` | Get current value |
-| `.set(value)` | Set value (auto-converts strings) |
-| `.add(amount)` | Add to current value |
-| `.have(amount)` | Check if has enough |
-| `.remove(amount)` | Remove if enough available |
-| `.removeAnyway(amount)` | Force remove |
-| `.transferTo(resource, amount)` | Transfer to another resource |
-| `.transferToAnyway(resource, amount)` | Force transfer |
-| `.exchangeTo(resource, options)` | Exchange with different rates |
+| --- | --- |
+| `value()` | Current balance (applies growth) |
+| `add(amount)` | Add |
+| `set(amount)` | Set |
+| `have(amount)` | Balance ≥ amount? |
+| `remove(amount)` | Subtract — throws if insufficient |
+| `removeAnyway(amount)` | Subtract regardless |
+| `transferTo(other, amount)` | Transfer same resource type |
+| `exchangeTo(other, options)` | Trade different amounts |
 
-### Growth Methods
+### Growth (passive income)
 
-| Method | Description |
-|--------|-------------|
-| `.add(options)` | Simple fixed growth |
-| `.addPercent(options)` | Percentage growth |
-| `.addCompoundInterest(options)` | Compound growth |
-| `.stop()` | Stop growth |
-| `.isEnabled()` | Check if active |
-| `.progress()` | Get current progress (0-100) |
-| `.willCompleteAfter()` | Time until next growth |
+```js
+let gold = Libs.ResourcesLib.userRes("gold")
+let g = Libs.ResourcesLib.growthFor(gold)
 
-### Growth Options
+g.add({ value: 1, interval: 60 })           // +1 per minute
+g.addPercent({ percent: 5, interval: 3600 }) // +5% per hour
+g.stop() / g.resume()
+```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `value` | number | Amount for simple growth |
-| `percent` | number | Percentage for % growth |
-| `interval` | number | Seconds between growth |
-| `min` | number | Minimum value |
-| `max` | number | Maximum value |
-| `max_iterations_count` | number | Max growth iterations |
+---
 
-## Example Usage
+## Storage keys
 
-```javascript
-// Setup player resources
-const playerGold = ResourcesLib.userRes('gold');
-const playerHealth = ResourcesLib.userRes('health');
+Same as v2:
 
-// Initialize if new player
-if (playerGold.value() === 0) {
-  playerGold.set(100);
-  playerHealth.set(100);
-}
+```
+ResourcesLib_user_{telegramId}_{resourceName}
+ResourcesLib_user_{telegramId}_{resourceName}_growth
+ResourcesLib_chat_{chatId}_{resourceName}
+ResourcesLib_global_global_{resourceName}
+```
 
-// Add passive income
-ResourcesLib.growthFor(playerGold).add({
-  value: 1,
-  interval: 60,
-  max: 1000
-});
+Legacy data in `Bot` properties and new data in `db.bot` are **separate stores** — you need a one-time migration script to copy values if switching storage backends.
 
-// Health regeneration
-ResourcesLib.growthFor(playerHealth).addPercent({
-  percent: 2,
-  interval: 30,
-  max: 100
-});
+---
 
-// Combat system
-function takeDamage(amount) {
-  playerHealth.removeAnyway(amount);
-  if (playerHealth.value() <= 0) {
-    playerHealth.set(50); // Respawn with 50 health
-    playerGold.remove(Math.floor(playerGold.value() * 0.1)); // Lose 10% gold
-  }
+## Full legacy example
+
+```js
+// Old style — still works but deprecated
+let gold = Libs.ResourcesLib.userRes("gold")
+gold.add(100)
+
+if (gold.have(50)) {
+  gold.remove(50)
+  Bot.sendMessage("Purchased! Balance: " + gold.value())
 }
 ```
+
+---
 
 ## Notes
 
-- All numeric values auto-convert from strings ("100" → 100)
-- Resources persist via Bot properties
-- Growth calculations happen when `.value()` is called
-- Supports both user and chat resources
-- Transfer operations validate resource types match
-
-
+- Do not start new bots on `ResourcesLib` — use `ResourcesLibv2`.
+- See [ResourcesLibv2.md](ResourcesLibv2.md) for complete modern documentation with examples.

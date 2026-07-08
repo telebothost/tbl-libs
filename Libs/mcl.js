@@ -1,113 +1,315 @@
-async function check(userId, channels) {
-  if (!Array.isArray(channels) || channels.length === 0) {
-    throw new Error("[LibsError] InputError: Channels list must be a non-empty array");
+/**
+ * Telegram Channel Membership Checker library for TBL runtime 
+ * @module mcl
+ */
+
+class MembershipChecker {
+  /**
+   * Normalizes channel input (removes @ if present)
+   * @private
+   * @param {string} channel - Channel identifier
+   * @returns {string} Normalized channel identifier
+   */
+  _normalizeChannel(channel) {
+    if (typeof channel !== 'string') return channel;
+    return channel.startsWith('@') ? channel.slice(1) : channel;
   }
 
-  if (channels.length > 10) {
-    throw new Error("[LibsError] LimitError: Max 10 channels allowed");
+  /**
+   * Validates channel input parameters
+   * @private
+   * @param {string[]} channels - Array of channel identifiers
+   * @throws {Error} When channels is invalid or exceeds limit
+   */
+  _validateChannels(channels) {
+    if (!Array.isArray(channels)) {
+      throw new Error("InputError: Channels must be an array");
+    }
+    
+    if (channels.length === 0) {
+      throw new Error("InputError: Channels array cannot be empty");
+    }
+    
+    if (channels.length > 10) {
+      throw new Error(`LimitError: Maximum 10 channels allowed, got ${channels.length}`);
+    }
   }
 
-  const results = {
-    all_joined: true,
-    valid: [],
-    left: [],
-    invalid: [],
-    details: []
-  };
+  /**
+   * Checks if a channel is private (has numeric ID or starts with -100)
+   * @private
+   * @param {string} channel - Channel identifier
+   * @returns {boolean} True if channel is private
+   */
+  _isPrivateChannel(channel) {
+    if (typeof channel !== 'string') return false;
+    return /^-?\d+$/.test(channel) || channel.startsWith('-100');
+  }
 
-  await Promise.all(channels.map(async (channel) => {
+  /**
+   * Processes a single channel membership check
+   * @private
+   * @param {string|number} userId - Telegram user ID
+   * @param {string} channel - Channel identifier
+   * @returns {Promise<Object>} Channel check result
+   */
+  async _processChannelCheck(userId, channel) {
+    const normalizedChannel = this._normalizeChannel(channel);
+    
     try {
       const member = await Api.getChatMember({
-        chat_id: channel,
+        chat_id: normalizedChannel,
         user_id: userId
       });
 
-      const isErrorLike = member?.message || member?.ok === false;
-
-      if (isErrorLike) {
-        results.invalid.push(channel);
-        return;
+      if (member?.ok === false || member?.message) {
+        return { 
+          channel: channel,
+          status: 'invalid', 
+          reason: member.message || 'Channel inaccessible'
+        };
       }
 
       const status = member?.result?.status;
+      
+      if (status === 'left' || status === 'kicked') {
+        return { 
+          channel: channel,
+          status: 'left',
+          isPrivate: this._isPrivateChannel(normalizedChannel)
+        };
+      }
+      
+      if (['member', 'administrator', 'creator'].includes(status)) {
+        return { 
+          channel: channel,
+          status: 'joined',
+          isPrivate: this._isPrivateChannel(normalizedChannel)
+        };
+      }
+      
+      return { 
+        channel: channel,
+        status: 'invalid',
+        reason: `Unknown membership status: ${status}`
+      };
+      
+    } catch (error) {
+      return { 
+        channel: channel,
+        status: 'invalid', 
+        reason: error.message || 'Failed to check membership',
+        isPrivate: this._isPrivateChannel(normalizedChannel)
+      };
+    }
+  }
 
-      if (["left", "kicked"].includes(status)) {
-        results.left.push(channel);
-        results.valid.push(channel);
-        results.details.push({ channel, member });
-        results.all_joined = false;
-      } else {
-        results.valid.push(channel);
-        results.details.push({ channel, member });
+  /**
+   * Check user membership in multiple channels
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers (with or without @)
+   * @returns {Promise<Object>} Detailed membership results
+   * 
+   * @example
+   * const result = await checker.check(123456789, ['@channel1', 'channel2']);
+   * console.log(result.allJoined);
+   */
+  async check(userId, channels) {
+    this._validateChannels(channels);
+
+    const results = {
+      allJoined: true,
+      joined: [],
+      left: [],
+      invalid: []
+    };
+
+    const channelResults = await Promise.all(
+      channels.map(channel => this._processChannelCheck(userId, channel))
+    );
+
+    for (const result of channelResults) {
+      switch (result.status) {
+        case 'joined':
+          results.joined.push(result.channel);
+          break;
+          
+        case 'left':
+          results.left.push(result.channel);
+          results.allJoined = false;
+          break;
+          
+        case 'invalid':
+          results.invalid.push({
+            channel: result.channel,
+            reason: result.reason
+          });
+          results.allJoined = false;
+          break;
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Quick check if user has joined all channels
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers
+   * @returns {Promise<boolean>} True if user joined all channels
+   * 
+   * @example
+   * const hasJoinedAll = await checker.quick(123456789, ['@channel1', 'channel2']);
+   */
+  async quick(userId, channels) {
+    const result = await this.check(userId, channels);
+    return result.allJoined;
+  }
+
+  /**
+   * Get list of channels user has not joined
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers
+   * @returns {Promise<string[]>} Array of channels user left
+   * 
+   * @example
+   * const leftChannels = await checker.getLeftChannels(123456789, ['@channel1', 'channel2']);
+   */
+  async getLeftChannels(userId, channels) {
+    const result = await this.check(userId, channels);
+    return result.left;
+  }
+
+  /**
+   * Get list of invalid or inaccessible channels
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers
+   * @returns {Promise<Array<Object>>} Array of invalid channels with reasons
+   * 
+   * @example
+   * const invalid = await checker.getInvalidChannels(123456789, channels);
+   */
+  async getInvalidChannels(userId, channels) {
+    const result = await this.check(userId, channels);
+    return result.invalid;
+  }
+
+  /**
+   * Generate human-readable summary text
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers
+   * @param {Object} [options] - Formatting options
+   * @returns {Promise<string>} Formatted summary text
+   * 
+   * @example
+   * const summary = await checker.summaryText(123456789, ['@channel1', 'channel2']);
+   */
+  async summaryText(userId, channels, options = {}) {
+    const result = await this.check(userId, channels);
+    
+    const defaults = {
+      joinedMessage: "You have joined all required channels.",
+      leftHeader: "Please join the following channels:",
+      invalidHeader: "Inaccessible channels:",
+      separator: "\n\n"
+    };
+    
+    const config = { ...defaults, ...options };
+    
+    if (result.allJoined) {
+      return config.joinedMessage;
+    }
+
+    const parts = [];
+    
+    if (result.left.length > 0) {
+      parts.push(config.leftHeader);
+      parts.push(result.left.map(channel => `  - ${channel}`).join("\n"));
+    }
+    
+    if (result.invalid.length > 0) {
+      if (parts.length > 0) parts.push("");
+      parts.push(config.invalidHeader);
+      const invalidList = result.invalid.map(item => 
+        `  - ${item.channel}\n    Reason: ${item.reason}`
+      );
+      parts.push(invalidList.join("\n"));
+    }
+    
+    return parts.join(config.separator);
+  }
+
+  /**
+   * Generate inline keyboard buttons for channels
+   * @param {string[]} channels - Array of channel identifiers
+   * @param {Object} [options] - Button configuration
+   * @param {string} [options.buttonPrefix="Join"] - Prefix for button text
+   * @returns {Array<Array<Object>>} Telegram inline keyboard button array
+   * 
+   * @example
+   * const buttons = checker.getBtn(['@channel1', 'channel2']);
+   */
+  getBtn(channels, options = {}) {
+    const { buttonPrefix = "Join" } = options;
+    
+    if (!Array.isArray(channels)) {
+      throw new Error("InputError: Channels must be an array");
+    }
+    
+    if (channels.length === 0) {
+      return [];
+    }
+
+    const seen = new Set();
+    const buttons = [];
+
+    for (let channel of channels) {
+      if (typeof channel !== 'string') continue;
+      
+      const normalized = this._normalizeChannel(channel);
+      
+      if (this._isPrivateChannel(normalized)) {
+        continue;
       }
 
-    } catch (_) {
-      results.invalid.push(channel);
-      results.all_joined = false;
-    }
-  }));
-
-  return results;
-}
-
-async function quick(userId, channels) {
-  const result = await check(userId, channels);
-  return result.all_joined;
-}
-
-async function getLeftChannels(userId, channels) {
-  const result = await check(userId, channels);
-  return result.left;
-}
-
-async function getInvalidChannels(userId, channels) {
-  const result = await check(userId, channels);
-  return result.invalid;
-}
-
-async function summaryText(userId, channels) {
-  const result = await check(userId, channels);
-  if (result.all_joined) return "✅ You have joined all required channels.";
-
-  let msg = "🚫 Please join the required channels:";
-  if (result.left.length > 0) {
-    msg += `\n\n📤 Left:\n${result.left.map(c => "• " + c).join("\n")}`;
-  }
-  if (result.invalid.length > 0) {
-    msg += `\n\n❌ Invalid/Inaccessible:\n${result.invalid.map(c => "• " + c).join("\n")}`;
-  }
-  return msg;
-}
-function getBtn(channels) {
-  if (!Array.isArray(channels)) {
-    throw new Error("[LibsError] InputError: Channels must be an array");
-  }
-
-  const seen = new Set();
-  const buttons = [];
-
-  for (let channel of channels) {
-    if (typeof channel !== 'string') continue;
-
-    if (channel.startsWith("@")) {
-      const username = channel.replace(/^@+/, ""); // remove @ if duplicated
-      if (seen.has(username)) continue;
-      seen.add(username);
-
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      
       buttons.push([{
-        text: `📢 Join @${username}`,
-        url: `https://t.me/${username}`
+        text: `${buttonPrefix} @${normalized}`,
+        url: `https://t.me/${normalized}`
       }]);
     }
+
+    return buttons;
   }
 
-  return buttons;
+  /**
+   * Get detailed statistics about channel membership
+   * @param {string|number} userId - Telegram user ID
+   * @param {string[]} channels - Array of channel identifiers
+   * @returns {Promise<Object>} Statistics object
+   * 
+   * @example
+   * const stats = await checker.getStats(123456789, channels);
+   */
+  async getStats(userId, channels) {
+    const result = await this.check(userId, channels);
+    
+    return {
+      total: channels.length,
+      joinedCount: result.joined.length,
+      leftCount: result.left.length,
+      invalidCount: result.invalid.length,
+      percentJoined: (result.joined.length / channels.length) * 100,
+      allJoined: result.allJoined,
+      hasIssues: result.left.length > 0 || result.invalid.length > 0
+    };
+  }
 }
-module.exports = {
-  check,
-  quick,
-  getLeftChannels,
-  getInvalidChannels,
-  summaryText,
-  getBtn
-};
+
+module.exports = new MembershipChecker();
+
+// last updated: 25/04/26
+// _v: 1.0.0
+// type: asynchronous
