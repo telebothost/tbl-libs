@@ -112,16 +112,25 @@ class MembershipChecker {
    * 
    * @example
    * const result = await checker.check(123456789, ['@channel1', 'channel2']);
-   * console.log(result.allJoined);
+   * console.log(result.allJoined); // camelCase (legacy)
+   * console.log(result.all_joined); // snake_case (new)
    */
   async check(userId, channels) {
     this._validateChannels(channels);
 
     const results = {
+      // camelCase (backward compatibility)
       allJoined: true,
       joined: [],
       left: [],
-      invalid: []
+      invalid: [],
+      
+      // snake_case (new naming convention)
+      all_joined: true,
+      joined_channels: [],
+      left_channels: [],
+      invalid_channels: [],
+      details: []
     };
 
     const channelResults = await Promise.all(
@@ -131,20 +140,50 @@ class MembershipChecker {
     for (const result of channelResults) {
       switch (result.status) {
         case 'joined':
+          // camelCase
           results.joined.push(result.channel);
+          // snake_case
+          results.joined_channels.push(result.channel);
+          results.details.push({
+            channel: result.channel,
+            status: 'joined',
+            isPrivate: result.isPrivate
+          });
           break;
           
         case 'left':
+          // camelCase
           results.left.push(result.channel);
+          // snake_case
+          results.left_channels.push(result.channel);
+          results.details.push({
+            channel: result.channel,
+            status: 'left',
+            isPrivate: result.isPrivate
+          });
           results.allJoined = false;
+          results.all_joined = false;
           break;
           
         case 'invalid':
+          // camelCase
           results.invalid.push({
             channel: result.channel,
             reason: result.reason
           });
+          // snake_case
+          results.invalid_channels.push({
+            channel: result.channel,
+            reason: result.reason
+          });
+          results.details.push({
+            channel: result.channel,
+            status: 'invalid',
+            reason: result.reason,
+            isPrivate: result.isPrivate
+          });
           results.allJoined = false;
+          results.all_joined = false;
           break;
       }
     }
@@ -163,7 +202,7 @@ class MembershipChecker {
    */
   async quick(userId, channels) {
     const result = await this.check(userId, channels);
-    return result.allJoined;
+    return result.allJoined; // camelCase (backward compatible)
   }
 
   /**
@@ -177,7 +216,7 @@ class MembershipChecker {
    */
   async getLeftChannels(userId, channels) {
     const result = await this.check(userId, channels);
-    return result.left;
+    return result.left; // camelCase (backward compatible)
   }
 
   /**
@@ -191,7 +230,7 @@ class MembershipChecker {
    */
   async getInvalidChannels(userId, channels) {
     const result = await this.check(userId, channels);
-    return result.invalid;
+    return result.invalid; // camelCase (backward compatible)
   }
 
   /**
@@ -216,18 +255,18 @@ class MembershipChecker {
     
     const config = { ...defaults, ...options };
     
-    if (result.allJoined) {
+    if (result.allJoined) { // camelCase
       return config.joinedMessage;
     }
 
     const parts = [];
     
-    if (result.left.length > 0) {
+    if (result.left.length > 0) { // camelCase
       parts.push(config.leftHeader);
       parts.push(result.left.map(channel => `  - ${channel}`).join("\n"));
     }
     
-    if (result.invalid.length > 0) {
+    if (result.invalid.length > 0) { // camelCase
       if (parts.length > 0) parts.push("");
       parts.push(config.invalidHeader);
       const invalidList = result.invalid.map(item => 
@@ -297,13 +336,23 @@ class MembershipChecker {
     const result = await this.check(userId, channels);
     
     return {
+      // camelCase (backward compatibility)
       total: channels.length,
       joinedCount: result.joined.length,
       leftCount: result.left.length,
       invalidCount: result.invalid.length,
       percentJoined: (result.joined.length / channels.length) * 100,
       allJoined: result.allJoined,
-      hasIssues: result.left.length > 0 || result.invalid.length > 0
+      hasIssues: result.left.length > 0 || result.invalid.length > 0,
+      
+      // snake_case (new naming convention)
+      total_channels: channels.length,
+      joined_count: result.joined.length,
+      left_count: result.left.length,
+      invalid_count: result.invalid.length,
+      percent_joined: (result.joined.length / channels.length) * 100,
+      all_joined: result.allJoined,
+      has_issues: result.left.length > 0 || result.invalid.length > 0
     };
   }
 }
@@ -311,5 +360,5 @@ class MembershipChecker {
 module.exports = new MembershipChecker();
 
 // last updated: 25/04/26
-// _v: 1.0.0
+// _v: 1.1.0
 // type: asynchronous
