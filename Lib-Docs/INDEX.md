@@ -25,6 +25,7 @@ To **test or develop** code from this repo (including `under_dev/`), create a co
 | `random.js` | `Libs.random` | sync | — | [random.md](random.md) |
 | `dateTimeFormat.js` | `Libs.dateTimeFormat` | sync | — | [dateTimeFormat.md](dateTimeFormat.md) |
 | `tgutil.js` | `Libs.tgutil` | sync | — | [tgutil.md](tgutil.md) |
+| `richUtil.js` | `Libs.richUtil` | sync | — | [richUtil.md](richUtil.md) |
 | `mcl.js` | `Libs.mcl` | async* | — | [mcl.md](mcl.md) |
 | `ResourcesLibv2.js` | `Libs.ResourcesLibv2` | async | `db.bot` | [ResourcesLibv2.md](ResourcesLibv2.md) |
 | `refLib.js` | `Libs.refLib` | async | `db.user` + `db.bot` | [refLib.md](refLib.md) |
@@ -40,7 +41,7 @@ To **test or develop** code from this repo (including `under_dev/`), create a co
 
 | Rule | Libraries |
 | --- | --- |
-| Call directly — no `await` | `random`, `dateTimeFormat`, `tgutil`, `mcl.getBtn()` |
+| Call directly — no `await` | `random`, `dateTimeFormat`, `tgutil`, `richUtil`, `mcl.getBtn()` |
 | Always `await` | `mcl`, `ResourcesLibv2`, `refLib`, `translate`, `cooldown` |
 
 TBL does not support `.then()` in command Logic — use `await` only.
@@ -99,6 +100,7 @@ let text = await Libs.translate.translate("Welcome!", { to: "hi" })
 | Dice, loot, passwords, test data | `random` |
 | Dates, countdowns, relative time | `dateTimeFormat` |
 | User mentions, escaping, WebApp data | `tgutil` |
+| Rich message parsing & builder (API 10.1+) | `richUtil` |
 | "Join channel to continue" gates | `mcl` |
 | Coins, XP, inventories, passive income | `ResourcesLibv2` |
 | Invite links, referral counts, leaderboard | `refLib` |

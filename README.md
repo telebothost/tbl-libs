@@ -87,6 +87,7 @@ Use this pattern to prototype libs from this repo (`under_dev/`, or your own cod
 | `random` | `Libs.random` | Sync | Numbers, strings, distributions, test data |
 | `dateTimeFormat` | `Libs.dateTimeFormat` | Sync | Formatting, arithmetic, locales, relative time |
 | `tgutil` | `Libs.tgutil` | Sync | Names, mentions, escaping, WebApp helpers |
+| `richUtil` | `Libs.richUtil` | Sync | Telegram API 10.1+ Rich Message parser & builder |
 | `mcl` | `Libs.mcl` | Async | Channel membership checks and join buttons |
 | `ResourcesLibv2` | `Libs.ResourcesLibv2` | Async | Economy, inventories, growth, transfers |
 | `refLib` | `Libs.refLib` | Async | Referral links, tracking, leaderboard |
